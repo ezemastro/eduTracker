@@ -1,7 +1,7 @@
 {
   "github.copilot.chat.commitMessageGeneration.instructions": [
     {
-      "text": "Short description in English."
+      "text": "Short description. Allways in English."
     }
   ]
 }
