@@ -3,7 +3,6 @@ import { verifyProtectedRoute } from "./lib/protectedRoutes";
 import { verifyToken } from "./lib/token";
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  console.log("Middleware triggered for URL:", context.url.pathname);
   const { url, cookies, redirect } = context;
   const isProtectedRoute = verifyProtectedRoute(url.pathname);
   if (!isProtectedRoute) {
