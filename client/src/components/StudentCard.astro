@@ -1,0 +1,37 @@
+---
+import type { Group, Student } from "@/lib/database";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import StudentImage from "./StudentImage.astro";
+
+interface Props {
+  student: Student;
+  group?: Group;
+  class?: string;
+}
+const { student, group, class: cardClass } = Astro.props;
+---
+
+<a href={`/students/${student.id}`}>
+  <Card className={cardClass}>
+    <CardHeader>
+      <StudentImage
+        src={student.image}
+        gender={student.gender}
+        class="object-contain aspect-square"
+      />
+    </CardHeader>
+    <CardContent>
+      <CardTitle className="text-center"
+        >{student.name}{" "}{student.lastName}</CardTitle
+      >
+      {
+        group && (
+          <p>
+            Grupo: {group.year}
+            {group.letter}
+          </p>
+        )
+      }
+    </CardContent>
+  </Card>
+</a>

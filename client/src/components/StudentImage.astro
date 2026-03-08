@@ -1,0 +1,18 @@
+---
+import type { Student } from "@/lib/database";
+interface Props {
+  src: string | null;
+  class?: string;
+  gender: Student["gender"];
+}
+
+const { src, class: className, gender } = Astro.props;
+
+const url =
+  src ||
+  (gender === "male"
+    ? "/images/default-male.png"
+    : "/images/default-female.png");
+---
+
+<img src={url} alt="Student Image" class={className} />
