@@ -10,6 +10,7 @@ export interface Student {
   id: number;
   name: string;
   lastName: string;
+  gender: "male" | "female";
   image: string | null;
   group_id: number;
 }
@@ -64,7 +65,7 @@ export const db = {
       });
       return res.rows[0] as unknown as Student;
     },
-    getByGroup: async (groupId: number) => {
+    getByGroupId: async (groupId: number) => {
       const res = await client.execute({
         sql: "SELECT * FROM students WHERE group_id = ?",
         args: [groupId],
@@ -73,15 +74,26 @@ export const db = {
     },
     create: async (student: Omit<Student, "id">) => {
       const res = await client.execute({
-        sql: "INSERT INTO students (name, lastName, image, group_id) VALUES (?, ?, ?, ?)",
-        args: [student.name, student.lastName, student.image, student.group_id],
+        sql: "INSERT INTO students (name, lastName, image, group_id, gender) VALUES (?, ?, ?, ?, ?)",
+        args: [
+          student.name,
+          student.lastName,
+          student.image,
+          student.group_id,
+          student.gender,
+        ],
       });
       return Number(res.lastInsertRowid);
     },
     update: async (id: number, student: Partial<Student>) => {
       return client.execute({
-        sql: "UPDATE students SET name = COALESCE(?, name), lastName = COALESCE(?, lastName) WHERE id = ?",
-        args: [student.name ?? null, student.lastName ?? null, id],
+        sql: "UPDATE students SET name = COALESCE(?, name), lastName = COALESCE(?, lastName), gender = COALESCE(?, gender) WHERE id = ?",
+        args: [
+          student.name ?? null,
+          student.lastName ?? null,
+          student.gender ?? null,
+          id,
+        ],
       });
     },
     delete: async (id: number) => {
@@ -137,6 +149,7 @@ if (isNewDatabase) {
       name TEXT NOT NULL,
       lastName TEXT NOT NULL,
       image TEXT,
+      gender TEXT,
       group_id INTEGER,
       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
   );`,

@@ -10,6 +10,7 @@ export const setInitialData = async () => {
         db.students.create({
           name: student.name,
           lastName: student.lastName,
+          gender: student.gender,
           image: student.image,
           group_id: id,
         });
