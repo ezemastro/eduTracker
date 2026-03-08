@@ -15,9 +15,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   // Set cookie
   cookies.set("auth_token", token, {
     httpOnly: true,
-    secure: true,
+    secure: import.meta.env.PROD,
     sameSite: "strict",
     maxAge: undefined,
+    path: "/",
   });
   // Return success response
   return new Response(null, {
