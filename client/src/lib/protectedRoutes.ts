@@ -1,4 +1,4 @@
 export const verifyProtectedRoute = (url: string) => {
-  const unprotectedRoutes = ["/", "/login"];
-  return !(unprotectedRoutes.includes(url) || url.startsWith("/api/"));
+  const unprotectedRoutes = ["/", "/login", "/api/login"];
+  return unprotectedRoutes.includes(url);
 };
