@@ -13,6 +13,10 @@ export interface Student {
   gender: "male" | "female";
   image: string | null;
   group_id: number;
+  ease_factor: number;
+  interval: number;
+  repetitions: number;
+  next_review: string;
 }
 export interface Comment {
   id: number;
@@ -151,6 +155,10 @@ if (isNewDatabase) {
       image TEXT,
       gender TEXT,
       group_id INTEGER,
+      ease_factor REAL DEFAULT 2.5,
+      interval INTEGER DEFAULT 0,
+      repetitions INTEGER DEFAULT 0,
+      next_review DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
   );`,
     `
