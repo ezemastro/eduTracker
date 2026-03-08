@@ -10,7 +10,7 @@ export interface Student {
   name: string;
   lastName: string;
   image: string | null;
-  group_id: number | null;
+  group_id: number;
 }
 export interface Comment {
   id: number;
@@ -23,12 +23,46 @@ const client = createClient({
   url: "file:data/local.db",
 });
 
+await client.execute(`
+  PRAGMA foreign_keys = ON;
+
+  CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      year INTEGER NOT NULL,
+      letter TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS students (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      lastName TEXT NOT NULL,
+      image TEXT,
+      group_id INTEGER,
+      FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+  );
+`);
+
 export const db = {
   // --- GROUPS ---
   groups: {
     getAll: async () => {
       const res = await client.execute("SELECT * FROM groups");
       return res.rows as unknown as Group[];
+    },
+    getById: async (id: number) => {
+      const res = await client.execute({
+        sql: "SELECT * FROM groups WHERE id = ?",
+        args: [id],
+      });
+      return res.rows[0] as unknown as Group;
     },
     create: async (year: number, letter: string) => {
       return client.execute({
@@ -84,7 +118,7 @@ export const db = {
 
   // --- COMMENTS ---
   comments: {
-    getByStudent: async (studentId: number) => {
+    getByStudentId: async (studentId: number) => {
       const res = await client.execute({
         sql: "SELECT * FROM comments WHERE student_id = ? ORDER BY created_at DESC",
         args: [studentId],
