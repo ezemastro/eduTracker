@@ -76,6 +76,49 @@ export const db = {
       });
       return res.rows as unknown as Student[];
     },
+    getNextReview: async () => {
+      const res = await client.execute(`
+        SELECT * FROM students 
+        WHERE next_review <= CURRENT_TIMESTAMP
+        ORDER BY next_review ASC
+        LIMIT 1
+      `);
+      return res.rows[0] as unknown as Student | null;
+    },
+    getDistractors: async ({
+      studentId,
+      groupId,
+      count,
+    }: {
+      studentId: number;
+      groupId: number;
+      count: number;
+    }) => {
+      const res = await client.execute({
+        sql: `
+          SELECT name || ' ' || lastName as fullName
+          FROM students
+          WHERE id != ? AND group_id = ?
+          ORDER BY RANDOM()
+          LIMIT ?
+        `,
+        args: [studentId, groupId, count],
+      });
+      return res.rows as unknown as { fullName: string }[];
+    },
+    updateFactor: async ({
+      id,
+      ease_factor,
+      interval,
+      repetitions,
+    }: Pick<Student, "id" | "ease_factor" | "interval" | "repetitions">) => {
+      return client.execute({
+        sql: `UPDATE students 
+              SET ease_factor = ?, interval = ?, repetitions = ?, next_review = datetime('now', '+' || ? || ' days')
+              WHERE id = ?`,
+        args: [ease_factor, interval, repetitions, interval, id],
+      });
+    },
     create: async (student: Omit<Student, "id">) => {
       const res = await client.execute({
         sql: "INSERT INTO students (name, lastName, image, group_id, gender) VALUES (?, ?, ?, ?, ?)",
