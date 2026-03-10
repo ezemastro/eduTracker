@@ -60,7 +60,10 @@ export const db = {
         FROM students s 
         LEFT JOIN groups g ON s.group_id = g.id
       `);
-      return res.rows;
+      return res.rows as unknown as (Student & {
+        year: number;
+        letter: string;
+      })[];
     },
     getById: async (id: number) => {
       const res = await client.execute({
