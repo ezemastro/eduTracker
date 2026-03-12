@@ -1,0 +1,29 @@
+---
+import StudentCard from "@/components/StudentCard.astro";
+import Layout from "@/layouts/Layout.astro";
+import { db } from "@/lib/database";
+
+const { id } = Astro.params;
+if (!id || isNaN(Number(id))) {
+  return Astro.redirect("/groups");
+}
+const group = await db.groups.getById(Number(id));
+if (!group) {
+  return Astro.redirect("/groups");
+}
+
+const students = await db.students.getByGroupId(Number(id));
+---
+
+<Layout>
+  <div class="flex w-full h-full flex-col">
+    <h1>{group.year}° {group.letter}</h1>
+    <ul class="max-w-6xl flex gap-4 flex-wrap">
+      {
+        students.map((student) => (
+          <StudentCard student={student} class="w-44" />
+        ))
+      }
+    </ul>
+  </div>
+</Layout>

@@ -1,0 +1,38 @@
+---
+import StudentImage from "@/components/StudentImage.astro";
+import Layout from "@/layouts/Layout.astro";
+import { db } from "@/lib/database";
+
+const { id } = Astro.params;
+
+if (!id || isNaN(Number(id))) {
+  return Astro.redirect("/students");
+}
+
+const student = await db.students.getById(Number(id));
+if (!student) {
+  return Astro.redirect("/students");
+}
+const group = await db.groups.getById(student.group_id);
+const comments = await db.comments.getByStudentId(student.id);
+---
+
+<Layout>
+  <h1 class="font-heading text-4xl font-semibold">
+    {student.name}
+    {student.lastName}
+  </h1>
+  <StudentImage gender={student.gender} src={student.image} />
+  <p>Grupo: {group.year}{group.letter}</p>
+  <h2>Comentarios:</h2>
+  <ul>
+    {
+      comments.map((comment) => (
+        <li>
+          <p>{comment.content}</p>
+          <small>{new Date(comment.created_at).toLocaleString()}</small>
+        </li>
+      ))
+    }
+  </ul>
+</Layout>

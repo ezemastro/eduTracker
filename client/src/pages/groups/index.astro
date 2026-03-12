@@ -1,0 +1,21 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { db } from "@/lib/database";
+
+const groups = await db.groups.getAll();
+---
+
+<Layout>
+  <h1>Cursos</h1>
+  <ul>
+    {
+      groups.map((group) => (
+        <li>
+          <a href={`/groups/${group.id}`}>
+            {group.year}° {group.letter}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</Layout>
