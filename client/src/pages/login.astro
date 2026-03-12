@@ -1,27 +1,69 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import LoginForm from "@/components/LoginForm";
-import {
-  Card,
-  CardPanel,
-  CardTitle,
-  CardHeader,
-  CardDescription,
-} from "@/components/ui/card";
-
-export const prerender = false;
 ---
 
 <Layout>
   <main class="flex w-full h-full items-center justify-center">
-    <Card>
-      <CardHeader>
-        <CardTitle>Inicia sesión</CardTitle>
-        <CardDescription>Introduce la contraseña para acceder</CardDescription>
-      </CardHeader>
-      <CardPanel>
-        <LoginForm client:load />
-      </CardPanel>
-    </Card>
+    <form class="card shadow-sm w-xs" id="login-form">
+      <div class="card-body">
+        <h1 class="card-title justify-center">Inicia sesión</h1>
+        <p class="text-xs text-center">Introduce la contraseña para acceder</p>
+        <div class="my-4">
+          <label class="floating-label w-full">
+            <span>Contraseña</span>
+            <input
+              class="input validator w-full"
+              type="password"
+              placeholder="Contraseña"
+              name="password"
+              required
+            />
+          </label>
+          <p id="incorrect-password" class="hidden text-error text-sm">
+            Contraseña incorrecta. Inténtalo de nuevo.
+          </p>
+        </div>
+        <div class="card-actions justify-center">
+          <button type="submit" class="btn btn-primary">Entrar</button>
+        </div>
+      </div>
+    </form>
   </main>
 </Layout>
+
+<script>
+  const form = document.getElementById("login-form") as HTMLFormElement;
+  const validatorHint = document.getElementById(
+    "incorrect-password",
+  ) as HTMLElement;
+  const inputElement = form.querySelector(".input") as HTMLElement;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const password = formData.get("password") as string;
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      if (res.ok) {
+        // Redirect to home page on successful login
+        window.location.href = "/";
+      } else {
+        // Show error message on failed login
+        validatorHint.classList.remove("hidden");
+        inputElement.classList.add("input-error");
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      validatorHint.classList.remove("hidden");
+      inputElement.classList.add("input-error");
+    }
+  });
+</script>
