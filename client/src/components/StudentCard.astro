@@ -1,6 +1,5 @@
 ---
 import type { Group, Student } from "@/lib/database";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import StudentImage from "./StudentImage.astro";
 
 interface Props {
@@ -12,26 +11,26 @@ const { student, group, class: cardClass } = Astro.props;
 ---
 
 <a href={`/students/${student.id}`}>
-  <Card className={cardClass}>
-    <CardHeader>
-      <StudentImage
-        src={student.image}
-        gender={student.gender}
-        class="object-contain aspect-square"
-      />
-    </CardHeader>
-    <CardContent>
-      <CardTitle className="text-center"
-        >{student.name}{" "}{student.lastName}</CardTitle
-      >
+  <div class={`flex items-center gap-4 p-4 border rounded-lg ${cardClass}`}>
+    <StudentImage
+      gender={student.gender}
+      src={student.image}
+      class="w-16 h-16 rounded-full object-cover"
+    />
+    <div>
+      <h2 class="font-heading text-lg font-semibold">
+        {student.name}
+        {student.lastName}
+      </h2>
       {
         group && (
-          <p>
+          <p class="text-sm text-gray-500">
+            {" "}
             Grupo: {group.year}
             {group.letter}
           </p>
         )
       }
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 </a>
