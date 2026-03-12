@@ -126,7 +126,12 @@ export const db = {
         args: [ease_factor, interval, repetitions, interval, id],
       });
     },
-    create: async (student: Omit<Student, "id">) => {
+    create: async (
+      student: Omit<
+        Student,
+        "id" | "next_review" | "ease_factor" | "interval" | "repetitions"
+      >,
+    ) => {
       const res = await client.execute({
         sql: "INSERT INTO students (name, lastName, image, group_id, gender) VALUES (?, ?, ?, ?, ?)",
         args: [
