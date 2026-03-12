@@ -23,8 +23,9 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
-# local database file
-data/
-
+# local database file and private data
+data/local.db
+data/intialData.ts
+data/groups/
 # local scripts
 scripts/

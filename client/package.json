@@ -3,7 +3,10 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
+    "setup:data": "test -f data/intialData.ts || cp data/intialData.example.ts data/intialData.ts",
+    "predev": "npm run setup:data",
     "dev": "astro dev --host",
+    "prebuild": "npm run setup:data",
     "build": "astro build",
     "preview": "astro preview --host",
     "astro": "astro",
