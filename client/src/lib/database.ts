@@ -83,6 +83,7 @@ export const db = {
       const res = await client.execute(`
         SELECT * FROM students 
         WHERE next_review <= CURRENT_TIMESTAMP
+          AND image IS NOT NULL
         ORDER BY next_review ASC
         LIMIT 1
       `);
@@ -97,15 +98,18 @@ export const db = {
       groupId: number;
       count: number;
     }) => {
+      // Same gender distractors
       const res = await client.execute({
         sql: `
           SELECT name || ' ' || lastName as fullName
           FROM students
-          WHERE id != ? AND group_id = ?
+          WHERE id != ? AND group_id = ? AND gender = (
+            SELECT gender FROM students WHERE id = ?
+          )
           ORDER BY RANDOM()
           LIMIT ?
         `,
-        args: [studentId, groupId, count],
+        args: [studentId, groupId, studentId, count],
       });
       return res.rows as unknown as { fullName: string }[];
     },

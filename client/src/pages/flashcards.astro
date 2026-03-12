@@ -1,0 +1,120 @@
+---
+import Info from "@/components/icons/Info.astro";
+import Layout from "@/layouts/Layout.astro";
+import { getNextFlashcard } from "@/lib/getNextFlashcard";
+const { status, flashcard } = await getNextFlashcard();
+---
+
+<Layout>
+  <main class="flex flex-col grow justify-center items-center">
+    {status === "done" && <p>No hay más flashcards por hoy</p>}
+    {
+      flashcard && (
+        <div class="card shadow">
+          <figure>
+            <img src={flashcard.image} class="w-full skeleton aspect-569/320" />
+            <a
+              class="btn btn-ghost btn-circle absolute top-2 right-2 p-1 size-12"
+              href={"/students/" + flashcard.id}
+            >
+              <Info class="size-full" />
+            </a>
+          </figure>
+          <div class="card-body">
+            <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {flashcard.options.map((option) => (
+                <button class="btn" data-option>
+                  {option}
+                </button>
+              ))}
+            </div>
+            <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
+              <button data-difficulty="easy" class="btn btn-soft btn-success">
+                Fácil
+              </button>
+              <button data-difficulty="medium" class="btn btn-warning">
+                Neutral
+              </button>
+              <button data-difficulty="hard" class="btn btn-soft btn-error">
+                Difícil
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    {
+      flashcard && (
+        <div class="mt-4">
+          <button
+            id="btn-next"
+            class="btn btn-primary btn-xl opacity-0 pointer-events-none transition:opacity duration-75"
+          >
+            Siguiente
+          </button>
+        </div>
+      )
+    }
+  </main>
+</Layout>
+
+<script define:vars={{ studentId: flashcard?.id }}>
+  const optionsButtons = document.querySelectorAll("button[data-option]");
+  const nextButton = document.getElementById("btn-next");
+  let difficulty = "medium";
+  optionsButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      fetch("/api/flashcards/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          studentId,
+          selectedName: button.textContent,
+          difficulty: difficulty === "medium" ? null : difficulty,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const { isCorrect, correctName } = data;
+          if (isCorrect) {
+            button.classList.add("btn-success");
+          } else {
+            button.classList.add("btn-error");
+            optionsButtons.forEach((btn) => {
+              console.log(btn.textContent);
+              console.log(btn.textContent === correctName);
+              console.log(correctName);
+              if (btn.textContent.trim() === correctName) {
+                btn.classList.add("btn-success");
+              }
+            });
+          }
+          nextButton.classList.remove("opacity-0", "pointer-events-none");
+        });
+    });
+  });
+
+  const difficultyButtons = document.querySelectorAll(
+    "button[data-difficulty]",
+  );
+  const updateDifficulty = (newDifficulty) => {
+    difficulty = newDifficulty;
+    difficultyButtons.forEach((btn) => {
+      btn.classList.add("btn-soft");
+      if (btn.dataset.difficulty === newDifficulty) {
+        btn.classList.remove("btn-soft");
+      }
+    });
+  };
+  difficultyButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      updateDifficulty(button.dataset.difficulty);
+    });
+  });
+
+  nextButton.addEventListener("click", () => {
+    window.location.reload();
+  });
+</script>
