@@ -1,0 +1,18 @@
+services:
+  edutrack:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: edutrack
+    ports:
+      - "${PORT:-4321}:4321"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-4321}
+      - SECURE_COOKIES=${SECURE_COOKIES:-false}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./client/data:/app/data
+    restart: unless-stopped
