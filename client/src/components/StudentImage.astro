@@ -15,4 +15,10 @@ const url =
     : "/images/default-female.png");
 ---
 
-<img src={url} alt="Student Image" class={className} />
+<img
+  src={url}
+  alt="Student Image"
+  class={"aspect-569/320 object-contain " +
+    (src ? "" : "opacity-50 ") +
+    (className || "")}
+/>
