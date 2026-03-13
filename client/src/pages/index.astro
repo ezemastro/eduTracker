@@ -1,11 +1,41 @@
 ---
 import Layout from "../layouts/Layout.astro";
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const { isLoggedIn } = Astro.locals;
 ---
 
 <Layout>
-  <a href="/login">Go to Login</a>
-  <a href="/flashcards">Go to Flashcards</a>
+  <header class="py-8 text-center">
+    <h1 class="font-heading text-4xl font-bold">
+      Bienvenido a la plataforma de gestión escolar
+    </h1>
+    <p class="mt-4 text-lg text-gray-600">
+      Administra tus estudiantes, grupos y más de manera eficiente.
+    </p>
+  </header>
+  {
+    isLoggedIn ? (
+      <>
+        <div class="flex justify-center join">
+          <a href="/groups" class="btn join-item">
+            Ver cursos
+          </a>
+          <a href="/students" class="btn join-item">
+            Ver estudiantes
+          </a>
+        </div>
+        <div class="justify-center mt-6 flex">
+          <a href="/flashcards" class="btn">
+            Ver tarjetas de memoria
+          </a>
+        </div>
+      </>
+    ) : (
+      <div class="flex flex-col items-center gap-4">
+        <p class="text-gray-600">Para comenzar debes iniciar sesión.</p>
+        <a href="/login" class="btn">
+          Iniciar Sesión
+        </a>
+      </div>
+    )
+  }
 </Layout>
