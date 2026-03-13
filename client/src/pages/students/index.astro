@@ -1,18 +1,245 @@
 ---
+import StudentCard from "@/components/StudentCard.astro";
+import Layout from "@/layouts/Layout.astro";
 import { db } from "@/lib/database";
 
-const students = await db.students.getAll();
+// Get search params
+const searchParams = Astro.url.searchParams;
+const photoFilter = searchParams.get("photo"); // "with", "without" or null
+const sortFilter = searchParams.get("sort");
+const selectedGroups = searchParams.getAll("groups");
+const query = searchParams.get("q")?.toLowerCase() || "";
+
+const hasFilters = searchParams.size > 0;
+const showNames = hasFilters ? searchParams.has("showNames") : true;
+const showGroups = hasFilters ? searchParams.has("showGroups") : true;
+
+// Fetch students
+let students = await db.students.getAll();
+
+// Search by query
+if (query) {
+  students = students.filter(
+    (s) =>
+      s.name.toLowerCase().includes(query) ||
+      s.lastName.toLowerCase().includes(query),
+  );
+}
+
+// Get unique groups for filter options
+const uniqueGroups = [
+  ...new Map(
+    students.map((s) => [
+      s.group_id,
+      { id: s.group_id, year: s.year, letter: s.letter },
+    ]),
+  ).values(),
+].sort((a, b) => a.year - b.year || a.letter.localeCompare(b.letter));
+
+// Filter students by photo
+if (photoFilter === "with") {
+  students = students.filter((s) => s.image);
+} else if (photoFilter === "without") {
+  students = students.filter((s) => !s.image);
+}
+
+// Filter students by selected groups
+if (selectedGroups.length > 0) {
+  students = students.filter((s) =>
+    selectedGroups.includes(s.group_id.toString()),
+  );
+}
+
+// Sort students
+if (sortFilter) {
+  students.sort((a, b) => {
+    if (sortFilter === "name_asc") return a.name.localeCompare(b.name);
+    if (sortFilter === "name_desc") return b.name.localeCompare(a.name);
+    if (sortFilter === "group_asc") {
+      if (a.year === b.year) return a.letter.localeCompare(b.letter);
+      return a.year - b.year;
+    }
+    if (sortFilter === "group_desc") {
+      if (a.year === b.year) return b.letter.localeCompare(a.letter);
+      return b.year - a.year;
+    }
+    if (sortFilter === "difficulty_asc") return a.ease_factor - b.ease_factor;
+    if (sortFilter === "difficulty_desc") return b.ease_factor - a.ease_factor;
+    return 0;
+  });
+}
 ---
 
-<h1 class="text-5xl font-">Estudiantes</h1>
-<ul>
-  {
-    students.map((student) => (
-      <li>
-        <a href={`/students/${student.id}`}>
-          {student.name} {student.lastName}
-        </a>
-      </li>
-    ))
-  }
-</ul>
+<Layout>
+  <header class="py-4">
+    <h1 class="text-3xl font-bold text-center">Estudiantes</h1>
+  </header>
+  <main class="p-4 space-y-4">
+    <form method="GET" class="flex flex-col gap-4 items-center justify-center">
+      <label class="input input-bordered flex items-center gap-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          class="w-4 h-4 opacity-70"
+          ><path
+            fill-rule="evenodd"
+            d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.754-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+            clip-rule="evenodd"></path></svg
+        >
+        <input type="text" name="q" placeholder="Search" value={query} />
+      </label>
+
+      <div class="flex gap-8 justify-center items-start">
+        <fieldset class="flex flex-col gap-4 p-4 shadow rounded-box min-w-52">
+          <span class="text-sm font-semibold text-base-content/70 text-center"
+            >Visualización</span
+          >
+          <div class="flex flex-col gap-3">
+            <div class="form-control">
+              <label class="label cursor-pointer gap-4 flex justify-between">
+                <span class="label-text">Mostrar nombres</span>
+                <input
+                  type="checkbox"
+                  name="showNames"
+                  class="toggle toggle-primary"
+                  checked={showNames}
+                />
+              </label>
+            </div>
+
+            <div class="form-control">
+              <label class="label cursor-pointer gap-4 flex justify-between">
+                <span class="label-text">Mostrar grupo</span>
+                <input
+                  type="checkbox"
+                  name="showGroups"
+                  class="toggle toggle-secondary"
+                  checked={showGroups}
+                />
+              </label>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset
+          class="flex flex-col gap-3 items-center min-w-52 shadow rounded-box p-4"
+        >
+          <span class="text-sm font-semibold text-base-content/70 text-center"
+            >Filtrar por foto</span
+          >
+          <div class="filter">
+            <input
+              class="btn btn-accent checked:btn-active not-checked:btn-outline"
+              type="radio"
+              name="photo"
+              value="with"
+              aria-label="Con foto"
+              checked={photoFilter === "with"}
+            />
+            <input
+              class="btn btn-warning checked:btn-active not-checked:btn-outline"
+              type="radio"
+              name="photo"
+              value="without"
+              aria-label="Sin foto"
+              checked={photoFilter === "without"}
+            />
+            <input
+              class="btn filter-reset btn-error btn-outline"
+              type="radio"
+              name="photo"
+              value=""
+              aria-label="X"
+              checked={!photoFilter}
+            />
+          </div>
+        </fieldset>
+
+        <fieldset
+          class="flex flex-col space-y-2 flex-1 min-w-75 max-w-xl shadow p-4 rounded-box"
+        >
+          <span class="text-sm font-semibold text-base-content/70 text-center"
+            >Filtrar por curso</span
+          >
+          <div class="flex flex-wrap gap-2 justify-center">
+            {
+              uniqueGroups.map((g) => (
+                <input
+                  class="btn"
+                  type="checkbox"
+                  name="groups"
+                  value={g.id}
+                  aria-label={`${g.year}° ${g.letter}`}
+                  checked={selectedGroups.includes(g.id.toString())}
+                />
+              ))
+            }
+          </div>
+        </fieldset>
+
+        <fieldset class="flex flex-col gap-2 p-4 shadow rounded-box min-w-64">
+          <span class="text-sm font-semibold text-base-content/70 text-center"
+            >Ordenar</span
+          >
+          <select name="sort" class="select select-bordered max-w-xs w-full">
+            <option value="" selected={!sortFilter}>Seleccionar</option>
+            <option value="name_asc" selected={sortFilter === "name_asc"}
+              >Nombre (A-Z)</option
+            >
+            <option value="name_desc" selected={sortFilter === "name_desc"}
+              >Nombre (Z-A)</option
+            >
+            <option value="group_asc" selected={sortFilter === "group_asc"}
+              >Curso (Menor a Mayor)</option
+            >
+            <option value="group_desc" selected={sortFilter === "group_desc"}
+              >Curso (Mayor a Menor)</option
+            >
+            <option
+              value="difficulty_asc"
+              selected={sortFilter === "difficulty_asc"}
+              >Dificultad (Menor a Mayor)</option
+            >
+            <option
+              value="difficulty_desc"
+              selected={sortFilter === "difficulty_desc"}
+              >Dificultad (Mayor a Menor)</option
+            >
+          </select>
+        </fieldset>
+      </div>
+      <div class="flex justify-center gap-4">
+        <a href={Astro.url.pathname} class="btn btn-ghost">Limpiar</a>
+        <button type="submit" class="btn btn-primary px-8" disabled>
+          Aplicar Filtros
+        </button>
+      </div>
+    </form>
+    <ul class="flex flex-wrap gap-4 justify-center">
+      {
+        students.map((student) => (
+          <li>
+            <StudentCard
+              student={student}
+              group={{
+                year: student.year,
+                letter: student.letter,
+                id: student.group_id,
+              }}
+              hideName={!showNames}
+              hideGroup={!showGroups}
+            />
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>
+
+<script>
+  const form = document.querySelector("form");
+  const submitButton = document.querySelector("button[type='submit']");
+  form?.addEventListener("change", () => {
+    submitButton?.removeAttribute("disabled");
+  });
+</script>
