@@ -6,31 +6,34 @@ interface Props {
   student: Student;
   group?: Group;
   class?: string;
+  hideName?: boolean;
+  hideGroup?: boolean;
 }
-const { student, group, class: cardClass } = Astro.props;
+const { student, group, class: cardClass, hideName, hideGroup } = Astro.props;
 ---
 
-<a href={`/students/${student.id}`}>
-  <div class={`flex items-center gap-4 p-4 border rounded-lg ${cardClass}`}>
-    <StudentImage
-      gender={student.gender}
-      src={student.image}
-      class="w-16 h-16 rounded-full object-cover"
-    />
-    <div>
-      <h2 class="font-heading text-lg font-semibold">
-        {student.name}
-        {student.lastName}
-      </h2>
-      {
-        group && (
-          <p class="text-sm text-gray-500">
-            {" "}
-            Grupo: {group.year}
+<a
+  href={`/students/${student.id}`}
+  class={"card shadow max-w-lg " + (cardClass || "")}
+>
+  <figure>
+    <StudentImage src={student.image} gender={student.gender} />
+  </figure>
+  {
+    !hideName || (!hideGroup && group) ? (
+      <div class={"card-body " + (hideGroup && "items-center")}>
+        {!hideName && (
+          <h2 class="card-title">
+            {student.name} {student.lastName}
+          </h2>
+        )}
+        {group && !hideGroup && (
+          <p>
+            Clase: {group.year}
             {group.letter}
           </p>
-        )
-      }
-    </div>
-  </div>
+        )}
+      </div>
+    ) : null
+  }
 </a>
