@@ -91,11 +91,9 @@ export const db = {
     },
     getDistractors: async ({
       studentId,
-      groupId,
       count,
     }: {
       studentId: number;
-      groupId: number;
       count: number;
     }) => {
       // Same gender distractors
@@ -103,13 +101,13 @@ export const db = {
         sql: `
           SELECT name || ' ' || lastName as fullName
           FROM students
-          WHERE id != ? AND group_id = ? AND gender = (
+          WHERE id != ? AND gender = (
             SELECT gender FROM students WHERE id = ?
           )
           ORDER BY RANDOM()
           LIMIT ?
         `,
-        args: [studentId, groupId, studentId, count],
+        args: [studentId, studentId, count],
       });
       return res.rows as unknown as { fullName: string }[];
     },

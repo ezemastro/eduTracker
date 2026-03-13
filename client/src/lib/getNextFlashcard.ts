@@ -22,7 +22,6 @@ export const getNextFlashcard = async (): Promise<Res> => {
   // Get distractors
   const distractors = await db.students.getDistractors({
     studentId: student.id,
-    groupId: student.group_id,
     count: 3,
   });
 
