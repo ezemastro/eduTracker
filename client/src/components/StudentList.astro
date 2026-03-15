@@ -1,0 +1,32 @@
+---
+import type { Group, Student } from "@/lib/database";
+import StudentCard from "./StudentCard.astro";
+
+interface Props {
+  students: (Student & Group)[];
+  showNames?: boolean;
+  showGroups?: boolean;
+}
+
+const { students, showNames = true, showGroups = true } = Astro.props;
+---
+
+<ul class="flex flex-wrap gap-4 justify-center">
+  {
+    students.map((student) => (
+      <li class="flex grow w-32 sm:w-48 md:w-64 max-w-xs sm:max-w-sm">
+        <StudentCard
+          class="w-full h-full"
+          student={student}
+          group={{
+            year: student.year,
+            letter: student.letter,
+            id: student.group_id,
+          }}
+          hideName={!showNames}
+          hideGroup={!showGroups}
+        />
+      </li>
+    ))
+  }
+</ul>

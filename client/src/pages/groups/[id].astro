@@ -1,5 +1,5 @@
 ---
-import StudentCard from "@/components/StudentCard.astro";
+import StudentList from "@/components/StudentList.astro";
 import Layout from "@/layouts/Layout.astro";
 import { db } from "@/lib/database";
 
@@ -18,12 +18,8 @@ const students = await db.students.getByGroupId(Number(id));
 <Layout>
   <div class="flex w-full h-full flex-col">
     <h1>{group.year}° {group.letter}</h1>
-    <ul class="max-w-6xl flex gap-4 flex-wrap">
-      {
-        students.map((student) => (
-          <StudentCard student={student} class="w-44" />
-        ))
-      }
-    </ul>
+    <StudentList
+      students={students.map((student) => ({ ...student, ...group }))}
+    />
   </div>
 </Layout>

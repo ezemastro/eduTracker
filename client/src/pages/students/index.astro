@@ -1,5 +1,5 @@
 ---
-import StudentCard from "@/components/StudentCard.astro";
+import StudentList from "@/components/StudentList.astro";
 import Layout from "@/layouts/Layout.astro";
 import { db } from "@/lib/database";
 
@@ -213,28 +213,11 @@ if (sortFilter) {
         </button>
       </div>
     </form>
-    <ul class="flex flex-wrap gap-4 justify-center">
-      {
-        students.map((student) => (
-          // 1. flex: para que el contenido (la card) pueda tomar el alto completo
-          // 2. grow: para que intente ocupar el espacio sobrante de la fila
-          // 3. max-w-sm: CRÍTICO. Evita que si en la última fila queda 1 solo alumno, se estire a pantalla completa.
-          <li class="flex grow w-32 sm:w-48 md:w-64 max-w-xs sm:max-w-sm">
-            <StudentCard
-              class="w-full h-full"
-              student={student}
-              group={{
-                year: student.year,
-                letter: student.letter,
-                id: student.group_id,
-              }}
-              hideName={!showNames}
-              hideGroup={!showGroups}
-            />
-          </li>
-        ))
-      }
-    </ul>
+    <StudentList
+      students={students}
+      showNames={showNames}
+      showGroups={showGroups}
+    />
   </main>
 </Layout>
 
