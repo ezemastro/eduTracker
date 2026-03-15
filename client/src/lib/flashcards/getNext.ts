@@ -10,9 +10,19 @@ type Res =
       };
     };
 
-export const getNextFlashcard = async (): Promise<Res> => {
+interface Props {
+  groups?: number[];
+  tracking?: boolean;
+}
+
+export const getNextFlashcard = async ({
+  groups,
+  tracking,
+}: Props = {}): Promise<Res> => {
   // Look for the next student to review
-  const student = await db.students.getNextReview();
+  const student = tracking
+    ? await db.students.getNextReview(groups)
+    : await db.students.getRandom(groups);
 
   // If nothing to review, return "done"
   if (!student) {

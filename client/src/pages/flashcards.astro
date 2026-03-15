@@ -1,34 +1,90 @@
 ---
 import Info from "@/components/icons/Info.astro";
 import Layout from "@/layouts/Layout.astro";
-import { getNextFlashcard } from "@/lib/getNextFlashcard";
-const { status, flashcard } = await getNextFlashcard();
+import { getNextFlashcard } from "@/lib/flashcards/getNext";
+import { db } from "@/lib/database";
+
+const searchParams = Astro.url.searchParams;
+
+let tracking = false;
+if (searchParams.has("configured")) {
+  // If just came from the config modal
+  tracking = searchParams.has("tracking");
+  // Store option as a cookie for future visits (1 year)
+  Astro.cookies.set("tracking_pref", tracking ? "true" : "false", {
+    path: "/",
+    maxAge: 31536000,
+  });
+} else {
+  // If entering the page normally, read the saved preference from the cookie
+  const cookieVal = Astro.cookies.get("tracking_pref")?.value;
+  if (cookieVal === "true") tracking = true;
+}
+
+const selectedGroups = searchParams.getAll("groups").map((g) => Number(g));
+const allGroups = await db.groups.getAll();
+
+const { status, flashcard } = await getNextFlashcard({
+  groups: selectedGroups,
+  tracking,
+});
 ---
 
 <Layout>
-  <main class="flex flex-col grow justify-center items-center">
-    {status === "done" && <p>No hay más flashcards por hoy</p>}
+  <div class="absolute top-4 right-4 z-10">
+    <button
+      class="btn btn-circle btn-ghost shadow bg-base-100"
+      onclick="configModal.showModal()"
+    >
+      ⚙️
+    </button>
+  </div>
+
+  <main class="flex flex-col grow justify-center items-center p-4">
+    {
+      status === "done" && (
+        <div class="text-center space-y-4">
+          <h2 class="text-2xl font-bold">¡Al día!</h2>
+          <p>No hay más flashcards por repasar hoy.</p>
+          <button class="btn btn-primary" onclick="configModal.showModal()">
+            Cambiar Configuración
+          </button>
+        </div>
+      )
+    }
+
     {
       flashcard && (
-        <div class="card shadow">
-          <figure>
-            <img src={flashcard.image} class="w-full skeleton aspect-569/320" />
+        <div class="card shadow bg-base-100 w-full max-w-md">
+          <figure class="relative">
+            <img
+              src={flashcard.image}
+              class="w-full skeleton aspect-video object-cover"
+            />
             <a
-              class="btn btn-ghost btn-circle absolute top-2 right-2 p-1 size-12"
+              class="btn btn-ghost btn-circle absolute top-2 right-2 p-1 size-12 bg-base-100/50 hover:bg-base-100/80 backdrop-blur-sm"
               href={"/students/" + flashcard.id}
             >
               <Info class="size-full" />
             </a>
           </figure>
+
           <div class="card-body">
             <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-2">
               {flashcard.options.map((option) => (
-                <button class="btn" data-option>
+                <button class="btn option-btn" data-option>
                   {option}
                 </button>
               ))}
             </div>
-            <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-3 mt-4">
+
+            <div
+              id="difficulty-container"
+              class="hidden card-actions grid-cols-1 gap-4 sm:grid-cols-3 mt-4 pt-4 border-t border-base-200"
+            >
+              <span class="col-span-full text-center text-sm font-semibold text-base-content/70">
+                ¿Qué tan difícil fue?
+              </span>
               <button data-difficulty="easy" class="btn btn-soft btn-success">
                 Fácil
               </button>
@@ -43,12 +99,13 @@ const { status, flashcard } = await getNextFlashcard();
         </div>
       )
     }
+
     {
       flashcard && (
-        <div class="mt-4">
+        <div class="mt-8">
           <button
             id="btn-next"
-            class="btn btn-primary btn-xl opacity-0 pointer-events-none transition:opacity duration-75"
+            class="btn btn-primary btn-wide opacity-0 pointer-events-none transition-opacity duration-200"
           >
             Siguiente
           </button>
@@ -56,65 +113,168 @@ const { status, flashcard } = await getNextFlashcard();
       )
     }
   </main>
+
+  <dialog id="configModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Configuración de Práctica</h3>
+      <form method="GET" class="space-y-6">
+        <input type="hidden" name="configured" value="yes" />
+
+        <div class="form-control bg-base-200 p-4 rounded-box">
+          <label class="label cursor-pointer flex justify-between">
+            <div>
+              <span class="label-text font-bold">Seguimiento Activo</span>
+              <div class="text-xs opacity-70 mt-1">
+                Guarda tu progreso (Algoritmo SM-2)
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              name="tracking"
+              value="true"
+              class="toggle toggle-primary"
+              checked={tracking}
+            />
+          </label>
+        </div>
+
+        <div class="form-control">
+          <span class="label-text font-bold mb-3">Filtrar por cursos</span>
+          <div class="flex flex-wrap gap-2">
+            {
+              allGroups.map((g) => (
+                <input
+                  type="checkbox"
+                  class="btn btn-sm"
+                  name="groups"
+                  value={g.id}
+                  aria-label={`${g.year}° ${g.letter}`}
+                  checked={selectedGroups.includes(g.id)}
+                />
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="modal-action">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            onclick="configModal.close()">Cancelar</button
+          >
+          <button type="submit" class="btn btn-primary"
+            >Aplicar y Recargar</button
+          >
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>cerrar</button>
+    </form>
+  </dialog>
 </Layout>
 
-<script define:vars={{ studentId: flashcard?.id }}>
-  const optionsButtons = document.querySelectorAll("button[data-option]");
-  const nextButton = document.getElementById("btn-next");
-  let difficulty = "medium";
-  optionsButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      fetch("/api/flashcards/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          studentId,
-          selectedName: button.textContent,
-          difficulty: difficulty === "medium" ? null : difficulty,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          const { isCorrect, correctName } = data;
-          if (isCorrect) {
-            button.classList.add("btn-success");
-          } else {
-            button.classList.add("btn-error");
-            optionsButtons.forEach((btn) => {
-              console.log(btn.textContent);
-              console.log(btn.textContent === correctName);
-              console.log(correctName);
-              if (btn.textContent.trim() === correctName) {
-                btn.classList.add("btn-success");
-              }
-            });
-          }
-          nextButton.classList.remove("opacity-0", "pointer-events-none");
+<script define:vars={{ studentId: flashcard?.id, tracking }}>
+  if (studentId) {
+    const optionsButtons = document.querySelectorAll("button[data-option]");
+    const nextButton = document.getElementById("btn-next");
+    const difficultyContainer = document.getElementById("difficulty-container");
+    const difficultyButtons = document.querySelectorAll(
+      "button[data-difficulty]",
+    );
+
+    let difficulty = "medium";
+    let needsFeedback = false;
+
+    optionsButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        // 1. Disable all options
+        optionsButtons.forEach((btn) => {
+          btn.classList.add("pointer-events-none");
+          btn.tabIndex = -1;
+          // Opacity for unselected options
+          if (btn !== button) btn.classList.add("opacity-50");
         });
-    });
-  });
 
-  const difficultyButtons = document.querySelectorAll(
-    "button[data-difficulty]",
-  );
-  const updateDifficulty = (newDifficulty) => {
-    difficulty = newDifficulty;
-    difficultyButtons.forEach((btn) => {
-      btn.classList.add("btn-soft");
-      if (btn.dataset.difficulty === newDifficulty) {
-        btn.classList.remove("btn-soft");
+        // 2. Verify the answer
+        fetch("/api/flashcards/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId,
+            selectedName: button.textContent.trim(),
+            tracking,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            const { isCorrect, correctName, waitingForFeedback } = data;
+            needsFeedback = waitingForFeedback;
+
+            // 3. Paint the buttons based on correctness
+            if (isCorrect) {
+              button.classList.add("btn-success");
+              button.classList.remove("opacity-50");
+            } else {
+              button.classList.add("btn-error");
+              optionsButtons.forEach((btn) => {
+                if (btn.textContent.trim() === correctName.trim()) {
+                  btn.classList.add("btn-success");
+                  btn.classList.remove("opacity-50");
+                }
+              });
+            }
+
+            // 4. If we need feedback, show the difficulty buttons
+            if (waitingForFeedback) {
+              difficultyContainer.classList.remove("hidden");
+              difficultyContainer.classList.add("grid");
+            }
+
+            // 5. Show next button
+            nextButton.classList.remove("opacity-0", "pointer-events-none");
+          });
+      });
+    });
+
+    // Difficulty selection logic
+    const updateDifficulty = (newDifficulty) => {
+      difficulty = newDifficulty;
+      difficultyButtons.forEach((btn) => {
+        btn.classList.add("btn-soft");
+        if (btn.dataset.difficulty === newDifficulty) {
+          btn.classList.remove("btn-soft");
+        }
+      });
+    };
+
+    difficultyButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        updateDifficulty(button.dataset.difficulty);
+      });
+    });
+
+    // Next button logic
+    nextButton.addEventListener("click", async () => {
+      if (needsFeedback) {
+        nextButton.disabled = true;
+        nextButton.textContent = "Guardando...";
+
+        await fetch("/api/flashcards/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            studentId,
+            difficulty,
+          }),
+        });
       }
-    });
-  };
-  difficultyButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      updateDifficulty(button.dataset.difficulty);
-    });
-  });
 
-  nextButton.addEventListener("click", () => {
-    window.location.reload();
-  });
+      // Clean URL and reload only with the selected groups
+      const url = new URL(window.location.href);
+      url.searchParams.delete("configured");
+      url.searchParams.delete("tracking");
+      window.location.href = url.toString();
+    });
+  }
 </script>

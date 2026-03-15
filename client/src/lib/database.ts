@@ -79,14 +79,41 @@ export const db = {
       });
       return res.rows as unknown as Student[];
     },
-    getNextReview: async () => {
-      const res = await client.execute(`
+    getNextReview: async (groups?: number[]) => {
+      let sql = `
         SELECT * FROM students 
         WHERE next_review <= CURRENT_TIMESTAMP
           AND image IS NOT NULL
-        ORDER BY next_review ASC
-        LIMIT 1
-      `);
+      `;
+      let args: number[] = [];
+
+      if (groups && groups.length > 0) {
+        const placeholders = groups.map(() => "?").join(",");
+        sql += ` AND group_id IN (${placeholders})`;
+        args = groups;
+      }
+
+      sql += " ORDER BY next_review ASC";
+      sql += " LIMIT 1";
+      const res = await client.execute({ sql, args });
+      return res.rows[0] as unknown as Student | null;
+    },
+    getRandom: async (groups?: number[]) => {
+      let sql = `
+        SELECT * FROM students 
+        WHERE image IS NOT NULL
+      `;
+      let args: number[] = [];
+
+      if (groups && groups.length > 0) {
+        const placeholders = groups.map(() => "?").join(",");
+        sql += ` AND group_id IN (${placeholders})`;
+        args = groups;
+      }
+
+      sql += " ORDER BY RANDOM()";
+      sql += " LIMIT 1";
+      const res = await client.execute({ sql, args });
       return res.rows[0] as unknown as Student | null;
     },
     getDistractors: async ({
