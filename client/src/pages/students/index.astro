@@ -90,8 +90,10 @@ if (sortFilter) {
         <input type="text" name="q" placeholder="Search" value={query} />
       </label>
 
-      <div class="flex gap-8 justify-center items-start">
-        <fieldset class="flex flex-col gap-4 p-4 shadow rounded-box min-w-52">
+      <div
+        class="flex gap-8 justify-center items-start shadow rounded-box p-4 flex-wrap"
+      >
+        <fieldset class="flex flex-col gap-4 min-w-52">
           <span class="text-sm font-semibold text-base-content/70 text-center"
             >Visualización</span
           >
@@ -121,9 +123,7 @@ if (sortFilter) {
             </div>
           </div>
         </fieldset>
-        <fieldset
-          class="flex flex-col gap-3 items-center min-w-52 shadow rounded-box p-4"
-        >
+        <fieldset class="flex flex-col gap-3 items-center min-w-52">
           <span class="text-sm font-semibold text-base-content/70 text-center"
             >Filtrar por foto</span
           >
@@ -155,9 +155,7 @@ if (sortFilter) {
           </div>
         </fieldset>
 
-        <fieldset
-          class="flex flex-col space-y-2 flex-1 min-w-75 max-w-xl shadow p-4 rounded-box"
-        >
+        <fieldset class="flex flex-col space-y-2 flex-1 min-w-75 max-w-xl">
           <span class="text-sm font-semibold text-base-content/70 text-center"
             >Filtrar por curso</span
           >
@@ -177,7 +175,7 @@ if (sortFilter) {
           </div>
         </fieldset>
 
-        <fieldset class="flex flex-col gap-2 p-4 shadow rounded-box min-w-64">
+        <fieldset class="flex flex-col gap-2 min-w-64">
           <span class="text-sm font-semibold text-base-content/70 text-center"
             >Ordenar</span
           >
@@ -218,8 +216,12 @@ if (sortFilter) {
     <ul class="flex flex-wrap gap-4 justify-center">
       {
         students.map((student) => (
-          <li>
+          // 1. flex: para que el contenido (la card) pueda tomar el alto completo
+          // 2. grow: para que intente ocupar el espacio sobrante de la fila
+          // 3. max-w-sm: CRÍTICO. Evita que si en la última fila queda 1 solo alumno, se estire a pantalla completa.
+          <li class="flex grow w-32 sm:w-48 md:w-64 max-w-xs sm:max-w-sm">
             <StudentCard
+              class="w-full h-full"
               student={student}
               group={{
                 year: student.year,

@@ -14,21 +14,23 @@ const { student, group, class: cardClass, hideName, hideGroup } = Astro.props;
 
 <a
   href={`/students/${student.id}`}
-  class={"card shadow max-w-lg " + (cardClass || "")}
+  class={"card shadow bg-base-100 flex flex-col h-full card-xs sm:card-md " +
+    (cardClass || "")}
 >
-  <figure>
+  <figure class="shrink-0">
     <StudentImage src={student.image} gender={student.gender} />
   </figure>
+
   {
     !hideName || (!hideGroup && group) ? (
       <div class={"card-body " + (hideGroup && "items-center")}>
         {!hideName && (
-          <h2 class="card-title">
+          <h2 class="card-title text-base sm:text-lg">
             {student.name} {student.lastName}
           </h2>
         )}
         {group && !hideGroup && (
-          <p>
+          <p class="text-sm opacity-70">
             Clase: {group.year}
             {group.letter}
           </p>
