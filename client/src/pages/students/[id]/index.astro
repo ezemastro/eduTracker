@@ -18,20 +18,25 @@ const group = await db.groups.getById(student.group_id);
 const comments = await db.comments.getByStudentId(student.id);
 ---
 
-<Layout>
+<Layout title={`${student.name} ${student.lastName} - Edu Tracker`}>
   <header class="p-4">
-    <h1 class="text-4xl text-center">
+    <h1 class="text-4xl text-center flex-1">
       {student.name}
       {student.lastName}
     </h1>
   </header>
   <main class="px-4 flex flex-col gap-4 max-w-2xl mx-auto mb-20">
-    <div class="max-h-64 flex justify-center">
+    <div class="max-h-96 flex justify-center">
       <StudentImage gender={student.gender} src={student.image} />
     </div>
-    <p class="badge badge-outline self-center">
-      Grupo: {group.year}{group.letter}
-    </p>
+    <div class="flex justify-between items-center">
+      <p class="badge badge-outline">
+        Grupo: {group.year}{group.letter}
+      </p>
+      <a href={`/students/${student.id}/edit`} class="btn btn-outline btn-sm">
+        Editar estudiante
+      </a>
+    </div>
 
     <div class="flex flex-col gap-2">
       <!-- <h2 class="text-xl font-bold">Comentarios</h2> -->

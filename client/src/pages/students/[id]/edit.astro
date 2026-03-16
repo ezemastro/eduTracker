@@ -1,0 +1,162 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { db } from "@/lib/database";
+
+const { id } = Astro.params;
+
+if (!id || Number.isNaN(Number(id))) {
+  return Astro.redirect("/students");
+}
+
+const studentId = Number(id);
+const student = await db.students.getById(studentId);
+
+if (!student) {
+  return Astro.redirect("/students");
+}
+
+const groups = await db.groups.getAll();
+---
+
+<Layout title={`${student.name} ${student.lastName} - Edu Tracker`}>
+  <main class="px-4 py-6 max-w-2xl mx-auto mb-20">
+    <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
+      <div>
+        <p class="text-sm opacity-70">Editar estudiante</p>
+        <h1 class="text-3xl font-bold">{student.name} {student.lastName}</h1>
+      </div>
+      <a href={`/students/${student.id}`} class="btn btn-ghost">Volver</a>
+    </div>
+
+    <form id="student-edit-form" class="card bg-base-100 shadow p-6 gap-4">
+      <label class="form-control w-full gap-2">
+        <span class="label-text font-medium">Nombre</span>
+        <input
+          type="text"
+          name="name"
+          class="input input-bordered w-full"
+          value={student.name}
+          required
+        />
+      </label>
+
+      <label class="form-control w-full gap-2">
+        <span class="label-text font-medium">Apellido</span>
+        <input
+          type="text"
+          name="lastName"
+          class="input input-bordered w-full"
+          value={student.lastName}
+          required
+        />
+      </label>
+
+      <label class="form-control w-full gap-2">
+        <span class="label-text font-medium">Género</span>
+        <select name="gender" class="select select-bordered w-full" required>
+          <option value="male" selected={student.gender === "male"}
+            >Masculino</option
+          >
+          <option value="female" selected={student.gender === "female"}
+            >Femenino</option
+          >
+        </select>
+      </label>
+
+      <label class="form-control w-full gap-2">
+        <span class="label-text font-medium">Grupo</span>
+        <select name="groupId" class="select select-bordered w-full" required>
+          {
+            groups.map((group) => (
+              <option value={group.id} selected={group.id === student.group_id}>
+                {group.year}° {group.letter}
+              </option>
+            ))
+          }
+        </select>
+      </label>
+
+      <label class="form-control w-full gap-2">
+        <span class="label-text font-medium">URL de imagen</span>
+        <input
+          type="text"
+          name="image"
+          class="input input-bordered w-full"
+          value={student.image ?? ""}
+          placeholder="https://..."
+        />
+      </label>
+
+      <p id="form-message" class="text-sm min-h-6"></p>
+
+      <div class="flex justify-end gap-3 flex-wrap">
+        <a href={`/students/${student.id}`} class="btn btn-ghost">Cancelar</a>
+        <button type="submit" id="submit-btn" class="btn btn-primary">
+          Guardar cambios
+        </button>
+      </div>
+    </form>
+  </main>
+</Layout>
+
+<script is:inline define:vars={{ studentId }}>
+  const form = document.getElementById("student-edit-form");
+  const submitButton = document.getElementById("submit-btn");
+  const formMessage = document.getElementById("form-message");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (
+      !(form instanceof HTMLFormElement) ||
+      !(submitButton instanceof HTMLButtonElement)
+    ) {
+      return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.innerHTML =
+      '<span class="loading loading-spinner"></span> Guardando...';
+
+    if (formMessage) {
+      formMessage.textContent = "";
+      formMessage.className = "text-sm min-h-6";
+    }
+
+    const formData = new FormData(form);
+    const payload = {
+      name: formData.get("name"),
+      lastName: formData.get("lastName"),
+      gender: formData.get("gender"),
+      groupId: Number(formData.get("groupId")),
+      image: formData.get("image"),
+    };
+
+    try {
+      const response = await fetch(`/api/students/${studentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "No se pudo guardar el estudiante");
+      }
+
+      window.location.href = `/students/${studentId}`;
+    } catch (error) {
+      if (formMessage) {
+        formMessage.textContent =
+          error instanceof Error
+            ? error.message
+            : "No se pudo guardar el estudiante";
+        formMessage.className = "text-sm min-h-6 text-error";
+      }
+    } finally {
+      submitButton.disabled = false;
+      submitButton.textContent = "Guardar cambios";
+    }
+  });
+</script>
