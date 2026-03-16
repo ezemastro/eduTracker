@@ -1,6 +1,7 @@
 ---
 import StudentImage from "@/components/StudentImage.astro";
 import Layout from "@/layouts/Layout.astro";
+import NewCommentIcon from "@/components/icons/NewComment.astro";
 import { db } from "@/lib/database";
 
 const { id } = Astro.params;
@@ -18,21 +19,131 @@ const comments = await db.comments.getByStudentId(student.id);
 ---
 
 <Layout>
-  <h1 class="font-heading text-4xl font-semibold">
-    {student.name}
-    {student.lastName}
-  </h1>
-  <StudentImage gender={student.gender} src={student.image} />
-  <p>Grupo: {group.year}{group.letter}</p>
-  <h2>Comentarios:</h2>
-  <ul>
-    {
-      comments.map((comment) => (
+  <header class="p-4">
+    <h1 class="text-4xl text-center">
+      {student.name}
+      {student.lastName}
+    </h1>
+  </header>
+  <main class="px-4 flex flex-col gap-4 max-w-2xl mx-auto mb-20">
+    <div class="max-h-64 flex justify-center">
+      <StudentImage gender={student.gender} src={student.image} />
+    </div>
+    <p class="badge badge-outline self-center">
+      Grupo: {group.year}{group.letter}
+    </p>
+
+    <div class="flex flex-col gap-2">
+      <!-- <h2 class="text-xl font-bold">Comentarios</h2> -->
+      {
+        comments.length === 0 && (
+          <p class="text-center text-sm text-gray-500 py-2">
+            No hay comentarios para este estudiante.
+          </p>
+        )
+      }
+      <ul class="flex flex-col gap-2">
+        {
+          comments.map((comment) => (
+            <li class="bg-base-200 p-4 rounded-lg">
+              <p>{comment.content}</p>
+              <small class="opacity-60">
+                {new Date(comment.created_at).toLocaleString()}
+              </small>
+            </li>
+          ))
+        }
         <li>
-          <p>{comment.content}</p>
-          <small>{new Date(comment.created_at).toLocaleString()}</small>
+          <button
+            class="btn btn-primary btn-block gap-2"
+            onclick="comment_modal.showModal()"
+          >
+            <NewCommentIcon class="h-6 w-auto" />
+            <span>Agregar comentario</span>
+          </button>
         </li>
-      ))
-    }
-  </ul>
+      </ul>
+    </div>
+  </main>
+
+  <button
+    class="btn btn-circle btn-primary fixed bottom-4 right-4 btn-lg shadow-xl"
+    onclick="comment_modal.showModal()"
+  >
+    <NewCommentIcon class="size-full p-3" />
+  </button>
+
+  <dialog id="comment_modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">
+        Nueva observación para {student.name}
+      </h3>
+
+      <form id="comment-form" class="flex flex-col gap-4">
+        <input type="hidden" name="studentId" value={student.id} />
+
+        <textarea
+          name="content"
+          class="textarea textarea-bordered h-32 text-base w-full"
+          placeholder="Escribe aquí el comentario..."
+          required></textarea>
+
+        <div class="modal-action">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            onclick="comment_modal.close()">Cancelar</button
+          >
+          <button type="submit" id="submit-btn" class="btn btn-primary px-8"
+            >Guardar</button
+          >
+        </div>
+      </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button>close</button>
+    </form>
+  </dialog>
 </Layout>
+
+<script>
+  const form = document.getElementById("comment-form") as HTMLFormElement;
+  const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+  const modal = document.getElementById("comment_modal") as HTMLDialogElement;
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    // UI Feedback
+    submitBtn.disabled = true;
+    submitBtn.innerHTML =
+      '<span class="loading loading-spinner"></span> Guardando...';
+
+    const formData = new FormData(form);
+    const data = {
+      studentId: Number(formData.get("studentId")),
+      content: formData.get("content"),
+    };
+
+    try {
+      const response = await fetch("/api/comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        modal.close();
+        window.location.reload();
+      } else {
+        alert("Error al guardar el comentario");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Hubo un error de red");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Guardar";
+    }
+  });
+</script>
