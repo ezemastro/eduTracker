@@ -6,16 +6,27 @@ const groups = await db.groups.getAll();
 ---
 
 <Layout>
-  <h1>Cursos</h1>
-  <ul>
-    {
-      groups.map((group) => (
-        <li>
-          <a href={`/groups/${group.id}`}>
-            {group.year}° {group.letter}
-          </a>
-        </li>
-      ))
-    }
-  </ul>
+  <header class="p-4">
+    <h1 class="text-2xl text-center">Grupos</h1>
+  </header>
+  <main>
+    <ul class="flex flex-wrap gap-4 max-w-4xl mx-auto">
+      {
+        groups.map((group) => (
+          <li>
+            <a class="card shadow" href={`/groups/${group.id}`}>
+              <div class="card-body">
+                <span class="card-title justify-center">
+                  {group.year}° {group.letter}
+                </span>
+                <span class="text-center">
+                  {group.student_count} estudiantes
+                </span>
+              </div>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
 </Layout>
