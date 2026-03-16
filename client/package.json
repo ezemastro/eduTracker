@@ -13,6 +13,7 @@
     "lint": "eslint . --ext .ts,.tsx,.astro"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.8",
     "@astrojs/node": "^9.1.2",
     "@libsql/client": "0.17.0",
     "@tailwindcss/vite": "^4.2.1",
