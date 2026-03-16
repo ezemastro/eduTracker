@@ -13,6 +13,7 @@ services:
       - PORT=${PORT:-4321}
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret_here}
     volumes:
       - ./client/data:/app/data
     restart: unless-stopped
