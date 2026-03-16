@@ -10,7 +10,7 @@ const groups = await db.groups.getAll();
     <h1 class="text-2xl text-center">Grupos</h1>
   </header>
   <main>
-    <ul class="flex flex-wrap gap-4 max-w-4xl mx-auto">
+    <ul class="flex flex-wrap gap-4 max-w-4xl mx-auto justify-center">
       {
         groups.map((group) => (
           <li>
