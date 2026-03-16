@@ -33,8 +33,10 @@ export const db = {
   // --- GROUPS ---
   groups: {
     getAll: async () => {
-      const res = await client.execute("SELECT * FROM groups");
-      return res.rows as unknown as Group[];
+      const res = await client.execute(
+        "SELECT *, COUNT(students.id) as student_count FROM groups LEFT JOIN students ON groups.id = students.group_id GROUP BY groups.id",
+      );
+      return res.rows as unknown as (Group & { student_count: number })[];
     },
     getById: async (id: number) => {
       const res = await client.execute({
