@@ -15,7 +15,7 @@ if (!group) {
 const students = await db.students.getByGroupId(Number(id));
 ---
 
-<Layout>
+<Layout title={group.year + "° " + group.letter + " - Edu Tracker"}>
   <div class="flex w-full h-full flex-col p-4">
     <h1 class="text-2xl text-center mb-4">{group.year}° {group.letter}</h1>
     <StudentList
