@@ -172,14 +172,21 @@ export const db = {
       return Number(res.lastInsertRowid);
     },
     update: async (id: number, student: Partial<Student>) => {
+      const fields = Object.entries(student).filter(
+        ([, value]) => value !== undefined,
+      );
+
+      if (fields.length === 0) {
+        return;
+      }
+
+      const sql = `UPDATE students SET ${fields
+        .map(([key]) => `${key} = ?`)
+        .join(", ")} WHERE id = ?`;
+
       return client.execute({
-        sql: "UPDATE students SET name = COALESCE(?, name), lastName = COALESCE(?, lastName), gender = COALESCE(?, gender) WHERE id = ?",
-        args: [
-          student.name ?? null,
-          student.lastName ?? null,
-          student.gender ?? null,
-          id,
-        ],
+        sql,
+        args: [...fields.map(([, value]) => value ?? null), id],
       });
     },
     delete: async (id: number) => {
