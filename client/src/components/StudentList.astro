@@ -3,7 +3,7 @@ import type { Group, Student } from "@/lib/database";
 import StudentCard from "./StudentCard.astro";
 
 interface Props {
-  students: (Student & Group)[];
+  students: (Student & Pick<Group, "year" | "letter">)[];
   showNames?: boolean;
   showGroups?: boolean;
 }
