@@ -1,0 +1,160 @@
+---
+import type { Student } from "@/lib/database";
+import StudentCard from "./StudentCard.astro";
+
+interface Props {
+  students: (Student & { year: number; letter: string })[];
+}
+
+const { students } = Astro.props;
+
+const greenStudents = students.filter((s) => s.sub_group === "green" || !s.sub_group);
+const yellowStudents = students.filter((s) => s.sub_group === "yellow");
+---
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-full">
+  <!-- Grupo Verde -->
+  <div
+    class="flex flex-col gap-3 bg-base-200 rounded-box p-4"
+    data-drop-zone="green"
+  >
+    <h2 class="text-lg font-bold text-center text-green-700">Grupo Verde</h2>
+    <div
+      class="flex flex-wrap gap-3 justify-center content-start min-h-[200px]"
+      data-list="green"
+    >
+      {
+        greenStudents.map((student) => (
+          <div
+            class="w-32 sm:w-48 md:w-64 max-w-xs sm:max-w-sm grow"
+            draggable="true"
+            data-student-id={student.id}
+          >
+            <StudentCard
+              class="w-full h-full"
+              student={student}
+              group={{
+                year: student.year,
+                letter: student.letter,
+                id: student.group_id,
+              }}
+              subGroup="green"
+            />
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  <!-- Grupo Amarillo -->
+  <div
+    class="flex flex-col gap-3 bg-base-200 rounded-box p-4"
+    data-drop-zone="yellow"
+  >
+    <h2 class="text-lg font-bold text-center text-yellow-600">
+      Grupo Amarillo
+    </h2>
+    <div
+      class="flex flex-wrap gap-3 justify-center content-start min-h-[200px]"
+      data-list="yellow"
+    >
+      {
+        yellowStudents.map((student) => (
+          <div
+            class="w-32 sm:w-48 md:w-64 max-w-xs sm:max-w-sm grow"
+            draggable="true"
+            data-student-id={student.id}
+          >
+            <StudentCard
+              class="w-full h-full"
+              student={student}
+              group={{
+                year: student.year,
+                letter: student.letter,
+                id: student.group_id,
+              }}
+              subGroup="yellow"
+            />
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</div>
+
+<script>
+  const draggables = document.querySelectorAll<HTMLElement>("[data-student-id]");
+  const dropZones = document.querySelectorAll<HTMLElement>("[data-drop-zone]");
+
+  draggables.forEach((el) => {
+    el.addEventListener("dragstart", (e) => {
+      const id = el.dataset.studentId;
+      if (id && e.dataTransfer) {
+        e.dataTransfer.setData("text/plain", id);
+        e.dataTransfer.effectAllowed = "move";
+      }
+      el.classList.add("opacity-50");
+    });
+
+    el.addEventListener("dragend", () => {
+      el.classList.remove("opacity-50");
+    });
+  });
+
+  dropZones.forEach((zone) => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "move";
+      }
+      zone.classList.add("ring-2", "ring-primary", "ring-offset-2");
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+    });
+
+    zone.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      zone.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+
+      const studentId = e.dataTransfer?.getData("text/plain");
+      const newSubGroup = zone.dataset.dropZone; // "green" | "yellow"
+      if (!studentId || !newSubGroup) return;
+
+      const draggable = document.querySelector<HTMLElement>(
+        `[data-student-id="${studentId}"]`,
+      );
+      if (!draggable) return;
+
+      try {
+        const res = await fetch(`/api/students/${studentId}/subgroup`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sub_group: newSubGroup }),
+        });
+
+        if (!res.ok) throw new Error("Error al actualizar");
+
+        // Move DOM element to the new list container
+        const targetList = zone.querySelector<HTMLElement>("[data-list]");
+        if (targetList) {
+          targetList.appendChild(draggable);
+        }
+
+        // Update color bar inside the card
+        const colorBar = draggable.querySelector<HTMLElement>(
+          ".bg-green-500, .bg-yellow-500",
+        );
+        if (colorBar) {
+          colorBar.classList.remove("bg-green-500", "bg-yellow-500");
+          colorBar.classList.add(
+            newSubGroup === "green" ? "bg-green-500" : "bg-yellow-500",
+          );
+        }
+      } catch {
+        alert("No se pudo cambiar de subgrupo. Intenta de nuevo.");
+      }
+    });
+  });
+</script>

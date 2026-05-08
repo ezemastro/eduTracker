@@ -8,15 +8,21 @@ interface Props {
   class?: string;
   hideName?: boolean;
   hideGroup?: boolean;
+  subGroup?: "green" | "yellow" | null;
 }
-const { student, group, class: cardClass, hideName, hideGroup } = Astro.props;
+const { student, group, class: cardClass, hideName, hideGroup, subGroup } = Astro.props;
 ---
 
 <a
   href={`/students/${student.id}`}
-  class={"card shadow bg-base-100 flex flex-col h-full card-xs sm:card-md " +
+  class={"card shadow bg-base-100 flex flex-col h-full card-xs sm:card-md overflow-hidden " +
     (cardClass || "")}
 >
+  {subGroup && (
+    <div
+      class={`h-1.5 w-full shrink-0 ${subGroup === "green" ? "bg-green-500" : "bg-yellow-500"}`}
+    />
+  )}
   <figure class="shrink-0">
     <StudentImage src={student.image} gender={student.gender} />
   </figure>
