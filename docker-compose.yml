@@ -17,3 +17,9 @@ services:
     volumes:
       - ./client/data:/app/data
     restart: unless-stopped
+    networks:
+      - proxy-network
+
+networks:
+  proxy-network:
+    external: true
