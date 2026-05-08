@@ -13,6 +13,7 @@ export interface Student {
   gender: "male" | "female";
   image: string | null;
   group_id: number;
+  sub_group: "green" | "yellow" | null;
   ease_factor: number;
   interval: number;
   repetitions: number;
@@ -244,6 +245,7 @@ if (isNewDatabase) {
       image TEXT,
       gender TEXT,
       group_id INTEGER,
+      sub_group TEXT,
       ease_factor REAL DEFAULT 2.5,
       interval INTEGER DEFAULT 0,
       repetitions INTEGER DEFAULT 0,
@@ -266,4 +268,11 @@ if (isNewDatabase) {
   } catch (error) {
     console.error("Error setting initial data:", error);
   }
+}
+
+// Migration: add sub_group column if it doesn't exist yet
+try {
+  await client.execute("ALTER TABLE students ADD COLUMN sub_group TEXT");
+} catch {
+  // Column already exists or table doesn't exist yet; safe to ignore
 }
