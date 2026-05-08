@@ -1,4 +1,5 @@
 import { db } from "../database";
+import { difficultyToQuality } from "./scoring";
 
 export const saveFlashcardDifficulty = async ({
   studentId,
@@ -7,21 +8,24 @@ export const saveFlashcardDifficulty = async ({
   studentId: number;
   difficulty: "easy" | "medium" | "hard";
 }) => {
-  if (difficulty === "medium") return; // Already handled as default in verify.ts
+  const quality = difficultyToQuality(difficulty);
 
-  const student = await db.students.getById(studentId);
-  let { ease_factor, interval } = student;
-  const { repetitions } = student;
+  let { ease_factor, interval, repetitions } =
+    await db.students.getById(studentId);
 
-  // Only adjust if the student has gone through the initial learning phase (reps > 2)
-  if (repetitions > 2) {
-    const modifier = difficulty === "easy" ? 1.3 : 0.8; // "hard" is 0.8
-    interval = Math.round(interval * modifier);
+  // SM-2 ease factor adjustment
+  const efChange = 0.1 - (5 - quality) * 0.15;
+  ease_factor = Math.max(1.3, ease_factor + efChange);
+
+  if (quality < 3) {
+    repetitions = 0;
+    interval = 1;
+  } else {
+    repetitions += 1;
+    if (repetitions === 1) interval = 1;
+    else if (repetitions === 2) interval = 3;
+    else interval = Math.round(interval * ease_factor);
   }
-
-  // Adjustment of the factor for the NEXT time
-  if (difficulty === "hard") ease_factor = Math.max(1.3, ease_factor - 0.15);
-  if (difficulty === "easy") ease_factor += 0.15;
 
   await db.students.updateFactor({
     id: studentId,

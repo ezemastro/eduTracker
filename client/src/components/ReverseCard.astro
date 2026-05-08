@@ -1,0 +1,141 @@
+---
+interface Props {
+  studentId: number;
+  name: string;
+  imageOptions: { id: number; image: string }[];
+  tracking: boolean;
+}
+
+const { studentId, name, imageOptions, tracking } = Astro.props;
+---
+
+<div class="card shadow bg-base-100 w-full max-w-md">
+  <div class="card-body gap-4">
+    <h2 class="text-2xl font-bold text-center">{name}</h2>
+    <p class="text-center text-sm opacity-70">¿Cuál es su foto?</p>
+
+    <div class="grid grid-cols-2 gap-3">
+      {
+        imageOptions.map((option) => (
+          <button
+            class="btn btn-ghost p-0 h-auto aspect-square overflow-hidden rounded-lg border-2 border-transparent hover:border-primary transition-colors"
+            data-image-id={option.id}
+            data-image-option
+          >
+            <img
+              src={option.image}
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))
+      }
+    </div>
+
+    <div
+      id="difficulty-container"
+      class="hidden card-actions grid-cols-1 gap-4 sm:grid-cols-3 mt-2 pt-4 border-t border-base-200"
+    >
+      <span
+        class="col-span-full text-center text-sm font-semibold text-base-content/70"
+      >
+        ¿Qué tan difícil fue?
+      </span>
+      <button data-difficulty="easy" class="btn btn-soft btn-success">
+        Fácil
+      </button>
+      <button data-difficulty="medium" class="btn btn-warning">
+        Neutral
+      </button>
+      <button data-difficulty="hard" class="btn btn-soft btn-error">
+        Difícil
+      </button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ studentId, tracking }}>
+  const imageButtons = document.querySelectorAll("[data-image-option]");
+  const difficultyContainer = document.getElementById("difficulty-container");
+  const difficultyButtons = document.querySelectorAll(
+    "button[data-difficulty]",
+  );
+
+  let difficulty = "medium";
+  let needsFeedback = false;
+
+  imageButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      imageButtons.forEach((btn) => {
+        btn.classList.add("pointer-events-none");
+        btn.tabIndex = -1;
+        if (btn !== button) btn.classList.add("opacity-50");
+      });
+
+      const selectedId = Number(button.dataset.imageId);
+
+      fetch("/api/flashcards/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          mode: "reverse",
+          selectedId,
+          tracking,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const { isCorrect, correctId, waitingForFeedback } = data;
+          needsFeedback = waitingForFeedback;
+
+          if (isCorrect) {
+            button.classList.add("border-success", "ring-2", "ring-success");
+            button.classList.remove("border-transparent");
+          } else {
+            button.classList.add("border-error", "ring-2", "ring-error");
+            button.classList.remove("border-transparent");
+
+            imageButtons.forEach((btn) => {
+              if (Number(btn.dataset.imageId) === correctId) {
+                btn.classList.add("border-success", "ring-2", "ring-success");
+                btn.classList.remove("border-transparent", "opacity-50");
+              }
+            });
+          }
+
+          if (waitingForFeedback) {
+            difficultyContainer.classList.remove("hidden");
+            difficultyContainer.classList.add("grid");
+          }
+
+          window.dispatchEvent(new CustomEvent("flashcard-answered"));
+        });
+    });
+  });
+
+  difficultyButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      difficulty = button.dataset.difficulty;
+      difficultyButtons.forEach((btn) => {
+        btn.classList.add("btn-soft");
+        if (btn.dataset.difficulty === difficulty) {
+          btn.classList.remove("btn-soft");
+        }
+      });
+    });
+  });
+
+  window.addEventListener("flashcard-next", async () => {
+    if (needsFeedback) {
+      await fetch("/api/flashcards/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          difficulty,
+        }),
+      });
+    }
+  });
+</script>

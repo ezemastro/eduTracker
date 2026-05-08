@@ -1,0 +1,190 @@
+---
+interface Props {
+  studentId: number;
+  image: string;
+}
+
+const { studentId, image } = Astro.props;
+---
+
+<div class="card shadow bg-base-100 w-full max-w-md">
+  <figure class="relative">
+    <img src={image} class="w-full skeleton aspect-video object-cover" />
+  </figure>
+
+  <div class="card-body gap-4">
+    <div class="form-control gap-2">
+      <label class="label-text font-medium text-center">
+        ¿Quién es este alumno?
+      </label>
+      <input
+        type="text"
+        id="type-input"
+        class="input input-bordered w-full text-lg text-center"
+        placeholder="Escribí el nombre completo..."
+        autocomplete="off"
+      />
+      <button id="verify-btn" class="btn btn-primary w-full">Verificar</button>
+    </div>
+
+    <div id="feedback" class="hidden flex-col gap-3">
+      <div id="breakdown" class="flex flex-col gap-1.5 text-sm"></div>
+
+      <div class="flex flex-col gap-1">
+        <div class="flex justify-between text-xs font-medium">
+          <span>Puntuación</span>
+          <span id="score-text">0%</span>
+        </div>
+        <progress
+          id="score-bar"
+          class="progress progress-primary w-full"
+          value="0"
+          max="100"
+        ></progress>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ studentId }}>
+  const input = document.getElementById("type-input");
+  const verifyBtn = document.getElementById("verify-btn");
+  const feedback = document.getElementById("feedback");
+  const breakdown = document.getElementById("breakdown");
+  const scoreText = document.getElementById("score-text");
+  const scoreBar = document.getElementById("score-bar");
+
+  let answered = false;
+
+  const categoryLabel = (cat) => {
+    switch (cat) {
+      case "firstName":
+        return "Primer nombre";
+      case "middleName":
+        return "Segundo nombre";
+      case "firstLastName":
+        return "Primer apellido";
+      case "secondLastName":
+        return "Segundo apellido";
+    }
+    return cat;
+  };
+
+  const similarityColor = (sim) => {
+    if (sim >= 0.9) return "text-success";
+    if (sim >= 0.6) return "text-warning";
+    if (sim > 0) return "text-orange-400";
+    return "text-error";
+  };
+
+  const similarityIcon = (sim) => {
+    if (sim >= 0.9) return '<span class="text-success font-bold">✓</span>';
+    if (sim >= 0.6) return '<span class="text-warning font-bold">~</span>';
+    if (sim > 0) return '<span class="text-orange-400 font-bold">∼</span>';
+    return '<span class="text-error font-bold">✗</span>';
+  };
+
+  const submit = async () => {
+    if (answered) return;
+    const value = input.value.trim();
+    if (!value) return;
+
+    answered = true;
+    input.disabled = true;
+    verifyBtn.classList.add("hidden");
+
+    const res = await fetch("/api/flashcards/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentId,
+        mode: "type",
+        typedName: value,
+        tracking: true,
+      }),
+    });
+
+    const data = await res.json();
+    const { score, details } = data;
+
+    // Color input based on overall score
+    if (score >= 0.95) {
+      input.classList.add("bg-success/20", "border-success");
+    } else if (score >= 0.5) {
+      input.classList.add("bg-warning/20", "border-warning");
+    } else {
+      input.classList.add("bg-error/20", "border-error");
+    }
+
+    // Build breakdown HTML
+    breakdown.innerHTML = "";
+    const grouped = {};
+    for (const d of details) {
+      if (!grouped[d.category]) grouped[d.category] = [];
+      grouped[d.category].push(d);
+    }
+
+    for (const cat of [
+      "firstName",
+      "middleName",
+      "firstLastName",
+      "secondLastName",
+    ]) {
+      const words = grouped[cat];
+      if (!words || words.length === 0) continue;
+
+      const label = categoryLabel(cat);
+
+      const wordTexts = words.map((w) => {
+        const color = similarityColor(w.similarity);
+        if (w.similarity >= 0.95) {
+          return `<span class="${color} font-medium">${w.word}</span>`;
+        }
+        if (w.similarity > 0 && w.inputWord && w.inputWord !== w.word) {
+          return `<span class="${color} font-medium">${w.inputWord} <span class="opacity-60 text-xs">(~${w.word})</span></span>`;
+        }
+        if (w.similarity > 0 && w.inputWord) {
+          return `<span class="${color} font-medium">${w.inputWord}</span>`;
+        }
+        return `<span class="${color} font-medium">${w.word}</span>`;
+      });
+
+      const avgSim =
+        words.reduce((sum, w) => sum + w.similarity, 0) / words.length;
+      const icon = similarityIcon(avgSim);
+
+      const row = document.createElement("div");
+      row.className = "flex items-center gap-2 flex-wrap";
+      row.innerHTML = `${icon} <span class="opacity-70">${label}:</span> ${wordTexts.join(" ")}`;
+      breakdown.appendChild(row);
+    }
+
+    // Score bar
+    const pct = Math.round(score * 100);
+    scoreText.textContent = pct + "%";
+    scoreBar.value = pct;
+    scoreBar.classList.remove(
+      "progress-primary",
+      "progress-success",
+      "progress-warning",
+      "progress-error",
+    );
+    if (pct >= 80) {
+      scoreBar.classList.add("progress-success");
+    } else if (pct >= 50) {
+      scoreBar.classList.add("progress-warning");
+    } else {
+      scoreBar.classList.add("progress-error");
+    }
+
+    feedback.classList.remove("hidden");
+    feedback.classList.add("flex");
+
+    window.dispatchEvent(new CustomEvent("flashcard-answered"));
+  };
+
+  verifyBtn?.addEventListener("click", submit);
+  input?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+</script>

@@ -1,24 +1,36 @@
 ---
-import Info from "@/components/icons/Info.astro";
+import MultipleChoiceCard from "@/components/MultipleChoiceCard.astro";
+import ReverseCard from "@/components/ReverseCard.astro";
+import TypeAnswerCard from "@/components/TypeAnswerCard.astro";
 import Layout from "@/layouts/Layout.astro";
 import { getNextFlashcard } from "@/lib/flashcards/getNext";
+import type { FlashcardMode } from "@/lib/flashcards/scoring";
 import { db } from "@/lib/database";
 
 const searchParams = Astro.url.searchParams;
 
 let tracking = false;
+let mode: FlashcardMode = "multiple";
+
 if (searchParams.has("configured")) {
-  // If just came from the config modal
   tracking = searchParams.has("tracking");
-  // Store option as a cookie for future visits (1 year)
+  const m = searchParams.get("mode");
+  if (m === "type" || m === "reverse") mode = m;
+
   Astro.cookies.set("tracking_pref", tracking ? "true" : "false", {
     path: "/",
     maxAge: 31536000,
   });
+  Astro.cookies.set("mode_pref", mode, {
+    path: "/",
+    maxAge: 31536000,
+  });
 } else {
-  // If entering the page normally, read the saved preference from the cookie
-  const cookieVal = Astro.cookies.get("tracking_pref")?.value;
-  if (cookieVal === "true") tracking = true;
+  const trackingCookie = Astro.cookies.get("tracking_pref")?.value;
+  if (trackingCookie === "true") tracking = true;
+
+  const modeCookie = Astro.cookies.get("mode_pref")?.value;
+  if (modeCookie === "type" || modeCookie === "reverse") mode = modeCookie;
 }
 
 const selectedGroups = searchParams.getAll("groups").map((g) => Number(g));
@@ -27,6 +39,7 @@ const allGroups = await db.groups.getAll();
 const { status, flashcard } = await getNextFlashcard({
   groups: selectedGroups,
   tracking,
+  mode,
 });
 ---
 
@@ -54,49 +67,30 @@ const { status, flashcard } = await getNextFlashcard({
     }
 
     {
-      flashcard && (
-        <div class="card shadow bg-base-100 w-full max-w-md">
-          <figure class="relative">
-            <img
-              src={flashcard.image}
-              class="w-full skeleton aspect-video object-cover"
-            />
-            <a
-              class="btn btn-ghost btn-circle absolute top-2 right-2 p-1 size-12 bg-base-100/50 hover:bg-base-100/80 backdrop-blur-sm"
-              href={"/students/" + flashcard.id}
-            >
-              <Info class="size-full" />
-            </a>
-          </figure>
+      flashcard?.mode === "multiple" && (
+        <MultipleChoiceCard
+          studentId={flashcard.id}
+          image={flashcard.image}
+          options={flashcard.options}
+          tracking={tracking}
+        />
+      )
+    }
 
-          <div class="card-body">
-            <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {flashcard.options.map((option) => (
-                <button class="btn option-btn" data-option>
-                  {option}
-                </button>
-              ))}
-            </div>
+    {
+      flashcard?.mode === "type" && (
+        <TypeAnswerCard studentId={flashcard.id} image={flashcard.image} />
+      )
+    }
 
-            <div
-              id="difficulty-container"
-              class="hidden card-actions grid-cols-1 gap-4 sm:grid-cols-3 mt-4 pt-4 border-t border-base-200"
-            >
-              <span class="col-span-full text-center text-sm font-semibold text-base-content/70">
-                ¿Qué tan difícil fue?
-              </span>
-              <button data-difficulty="easy" class="btn btn-soft btn-success">
-                Fácil
-              </button>
-              <button data-difficulty="medium" class="btn btn-warning">
-                Neutral
-              </button>
-              <button data-difficulty="hard" class="btn btn-soft btn-error">
-                Difícil
-              </button>
-            </div>
-          </div>
-        </div>
+    {
+      flashcard?.mode === "reverse" && (
+        <ReverseCard
+          studentId={flashcard.id}
+          name={flashcard.name}
+          imageOptions={flashcard.imageOptions}
+          tracking={tracking}
+        />
       )
     }
 
@@ -119,6 +113,42 @@ const { status, flashcard } = await getNextFlashcard({
       <h3 class="font-bold text-lg mb-4">Configuración de Práctica</h3>
       <form method="GET" class="space-y-6">
         <input type="hidden" name="configured" value="yes" />
+
+        <div class="form-control bg-base-200 p-4 rounded-box">
+          <span class="label-text font-bold mb-3">Modo de juego</span>
+          <div class="flex flex-col gap-2">
+            <label class="label cursor-pointer justify-start gap-3">
+              <input
+                type="radio"
+                name="mode"
+                value="multiple"
+                class="radio radio-primary"
+                checked={mode === "multiple"}
+              />
+              <span class="label-text">Opción Múltiple</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3">
+              <input
+                type="radio"
+                name="mode"
+                value="type"
+                class="radio radio-primary"
+                checked={mode === "type"}
+              />
+              <span class="label-text">Escribir Nombre</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-3">
+              <input
+                type="radio"
+                name="mode"
+                value="reverse"
+                class="radio radio-primary"
+                checked={mode === "reverse"}
+              />
+              <span class="label-text">Reconocer Cara</span>
+            </label>
+          </div>
+        </div>
 
         <div class="form-control bg-base-200 p-4 rounded-box">
           <label class="label cursor-pointer flex justify-between">
@@ -174,107 +204,28 @@ const { status, flashcard } = await getNextFlashcard({
   </dialog>
 </Layout>
 
-<script define:vars={{ studentId: flashcard?.id, tracking }}>
-  if (studentId) {
-    const optionsButtons = document.querySelectorAll("button[data-option]");
-    const nextButton = document.getElementById("btn-next");
-    const difficultyContainer = document.getElementById("difficulty-container");
-    const difficultyButtons = document.querySelectorAll(
-      "button[data-difficulty]",
-    );
+<script>
+  const nextButton = document.getElementById("btn-next");
 
-    let difficulty = "medium";
-    let needsFeedback = false;
+  window.addEventListener("flashcard-answered", () => {
+    nextButton?.classList.remove("opacity-0", "pointer-events-none");
+  });
 
-    optionsButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        // 1. Disable all options
-        optionsButtons.forEach((btn) => {
-          btn.classList.add("pointer-events-none");
-          btn.tabIndex = -1;
-          // Opacity for unselected options
-          if (btn !== button) btn.classList.add("opacity-50");
-        });
+  nextButton?.addEventListener("click", async () => {
+    nextButton.disabled = true;
+    nextButton.innerHTML =
+      '<span class="loading loading-spinner"></span> Guardando...';
 
-        // 2. Verify the answer
-        fetch("/api/flashcards/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            studentId,
-            selectedName: button.textContent.trim(),
-            tracking,
-          }),
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            const { isCorrect, correctName, waitingForFeedback } = data;
-            needsFeedback = waitingForFeedback;
+    // Emit event so individual card components can save their feedback
+    window.dispatchEvent(new CustomEvent("flashcard-next"));
 
-            // 3. Paint the buttons based on correctness
-            if (isCorrect) {
-              button.classList.add("btn-success");
-              button.classList.remove("opacity-50");
-            } else {
-              button.classList.add("btn-error");
-              optionsButtons.forEach((btn) => {
-                if (btn.textContent.trim() === correctName.trim()) {
-                  btn.classList.add("btn-success");
-                  btn.classList.remove("opacity-50");
-                }
-              });
-            }
+    // Small delay to let async feedback requests fire
+    await new Promise((r) => setTimeout(r, 300));
 
-            // 4. If we need feedback, show the difficulty buttons
-            if (waitingForFeedback) {
-              difficultyContainer.classList.remove("hidden");
-              difficultyContainer.classList.add("grid");
-            }
-
-            // 5. Show next button
-            nextButton.classList.remove("opacity-0", "pointer-events-none");
-          });
-      });
-    });
-
-    // Difficulty selection logic
-    const updateDifficulty = (newDifficulty) => {
-      difficulty = newDifficulty;
-      difficultyButtons.forEach((btn) => {
-        btn.classList.add("btn-soft");
-        if (btn.dataset.difficulty === newDifficulty) {
-          btn.classList.remove("btn-soft");
-        }
-      });
-    };
-
-    difficultyButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        updateDifficulty(button.dataset.difficulty);
-      });
-    });
-
-    // Next button logic
-    nextButton.addEventListener("click", async () => {
-      if (needsFeedback) {
-        nextButton.disabled = true;
-        nextButton.textContent = "Guardando...";
-
-        await fetch("/api/flashcards/feedback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            studentId,
-            difficulty,
-          }),
-        });
-      }
-
-      // Clean URL and reload only with the selected groups
-      const url = new URL(window.location.href);
-      url.searchParams.delete("configured");
-      url.searchParams.delete("tracking");
-      window.location.href = url.toString();
-    });
-  }
+    // Clean URL and reload only with the selected groups and mode
+    const url = new URL(window.location.href);
+    url.searchParams.delete("configured");
+    url.searchParams.delete("tracking");
+    window.location.href = url.toString();
+  });
 </script>

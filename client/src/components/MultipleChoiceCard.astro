@@ -1,0 +1,130 @@
+---
+interface Props {
+  studentId: number;
+  image: string;
+  options: string[];
+  tracking: boolean;
+}
+
+const { studentId, image, options, tracking } = Astro.props;
+---
+
+<div class="card shadow bg-base-100 w-full max-w-md">
+  <figure class="relative">
+    <img src={image} class="w-full skeleton aspect-video object-cover" />
+  </figure>
+
+  <div class="card-body">
+    <div class="card-actions grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {
+        options.map((option) => (
+          <button class="btn option-btn" data-option>
+            {option}
+          </button>
+        ))
+      }
+    </div>
+
+    <div
+      id="difficulty-container"
+      class="hidden card-actions grid-cols-1 gap-4 sm:grid-cols-3 mt-4 pt-4 border-t border-base-200"
+    >
+      <span
+        class="col-span-full text-center text-sm font-semibold text-base-content/70"
+      >
+        ¿Qué tan difícil fue?
+      </span>
+      <button data-difficulty="easy" class="btn btn-soft btn-success">
+        Fácil
+      </button>
+      <button data-difficulty="medium" class="btn btn-warning">
+        Neutral
+      </button>
+      <button data-difficulty="hard" class="btn btn-soft btn-error">
+        Difícil
+      </button>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ studentId, tracking }}>
+  const optionsButtons = document.querySelectorAll("button[data-option]");
+  const difficultyContainer = document.getElementById("difficulty-container");
+  const difficultyButtons = document.querySelectorAll(
+    "button[data-difficulty]",
+  );
+
+  let difficulty = "medium";
+  let needsFeedback = false;
+
+  optionsButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      optionsButtons.forEach((btn) => {
+        btn.classList.add("pointer-events-none");
+        btn.tabIndex = -1;
+        if (btn !== button) btn.classList.add("opacity-50");
+      });
+
+      fetch("/api/flashcards/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          mode: "multiple",
+          selectedName: button.textContent.trim(),
+          tracking,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const { isCorrect, correctName, waitingForFeedback } = data;
+          needsFeedback = waitingForFeedback;
+
+          if (isCorrect) {
+            button.classList.add("btn-success");
+            button.classList.remove("opacity-50");
+          } else {
+            button.classList.add("btn-error");
+            optionsButtons.forEach((btn) => {
+              if (btn.textContent.trim() === correctName.trim()) {
+                btn.classList.add("btn-success");
+                btn.classList.remove("opacity-50");
+              }
+            });
+          }
+
+          if (waitingForFeedback) {
+            difficultyContainer.classList.remove("hidden");
+            difficultyContainer.classList.add("grid");
+          }
+
+          window.dispatchEvent(new CustomEvent("flashcard-answered"));
+        });
+    });
+  });
+
+  difficultyButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      difficulty = button.dataset.difficulty;
+      difficultyButtons.forEach((btn) => {
+        btn.classList.add("btn-soft");
+        if (btn.dataset.difficulty === difficulty) {
+          btn.classList.remove("btn-soft");
+        }
+      });
+    });
+  });
+
+  window.addEventListener("flashcard-next", async () => {
+    if (needsFeedback) {
+      await fetch("/api/flashcards/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          difficulty,
+        }),
+      });
+    }
+  });
+</script>

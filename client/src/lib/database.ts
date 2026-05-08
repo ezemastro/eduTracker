@@ -129,17 +129,18 @@ export const db = {
       // Same gender distractors
       const res = await client.execute({
         sql: `
-          SELECT name || ' ' || lastName as fullName
+          SELECT id, image, name || ' ' || lastName as fullName
           FROM students
           WHERE id != ? AND gender = (
             SELECT gender FROM students WHERE id = ?
           )
+          AND image IS NOT NULL
           ORDER BY RANDOM()
           LIMIT ?
         `,
         args: [studentId, studentId, count],
       });
-      return res.rows as unknown as { fullName: string }[];
+      return res.rows as unknown as { id: number; image: string; fullName: string }[];
     },
     updateFactor: async ({
       id,
