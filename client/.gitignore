@@ -29,3 +29,5 @@ data/intialData.ts
 data/groups/
 # local scripts
 scripts/
+
+package-lock.json
