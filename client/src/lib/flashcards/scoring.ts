@@ -17,6 +17,7 @@ export interface ScoreResult {
   score: number; // 0 - 1
   quality: number; // 0 - 5 (SM-2)
   details: WordDetail[];
+  unusedInputWords: string[];
 }
 
 function normalize(str: string): string {
@@ -36,7 +37,6 @@ function toWords(str: string): string[] {
 function lcsLength(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
-  // Use two rows to save memory
   let prev = Array(n + 1).fill(0);
   let curr = Array(n + 1).fill(0);
   for (let i = 1; i <= m; i++) {
@@ -59,9 +59,9 @@ function wordSimilarity(a: string, b: string): number {
   if (na === nb) return 1;
   if (na.length === 0 || nb.length === 0) return 0;
 
-  // One starts with the other → strong signal (e.g. benja ~ benjamin)
+  // One starts with the other → very strong signal (e.g. benja ~ benjamin)
   if (na.startsWith(nb) || nb.startsWith(na)) {
-    return Math.min(na.length, nb.length) / Math.max(na.length, nb.length);
+    return 0.8 + 0.2 * (Math.min(na.length, nb.length) / Math.max(na.length, nb.length));
   }
 
   const lcs = lcsLength(na, nb);
@@ -69,26 +69,66 @@ function wordSimilarity(a: string, b: string): number {
 }
 
 const WEIGHTS: Record<WordCategory, number> = {
-  firstName: 0.50,
+  firstName: 0.35,
   middleName: 0.10,
-  firstLastName: 0.25,
-  secondLastName: 0.15,
+  firstLastName: 0.35,
+  secondLastName: 0.10,
 };
 
-function bestMatch(
-  target: string,
+interface CorrectWord {
+  word: string;
+  category: WordCategory;
+}
+
+function globalBestMatch(
   inputWords: string[],
-): { similarity: number; inputWord: string } {
-  let bestSim = 0;
-  let bestWord = "";
-  for (const iw of inputWords) {
-    const sim = wordSimilarity(target, iw);
-    if (sim > bestSim) {
-      bestSim = sim;
-      bestWord = iw;
+  correctWords: CorrectWord[],
+): { details: WordDetail[]; unusedInputWords: string[] } {
+  // Build all pairs sorted by similarity descending
+  const pairs: { i: number; j: number; sim: number }[] = [];
+  for (let i = 0; i < inputWords.length; i++) {
+    for (let j = 0; j < correctWords.length; j++) {
+      pairs.push({
+        i,
+        j,
+        sim: wordSimilarity(inputWords[i], correctWords[j].word),
+      });
     }
   }
-  return { similarity: bestSim, inputWord: bestWord };
+  pairs.sort((a, b) => b.sim - a.sim);
+
+  const usedInput = new Set<number>();
+  const usedCorrect = new Set<number>();
+  const assignments = new Map<number, number>(); // correct index -> input index
+
+  for (const p of pairs) {
+    if (usedInput.has(p.i) || usedCorrect.has(p.j)) continue;
+    usedInput.add(p.i);
+    usedCorrect.add(p.j);
+    assignments.set(p.j, p.i);
+  }
+
+  const details = correctWords.map((cw, j) => {
+    const inputIdx = assignments.get(j);
+    if (inputIdx !== undefined) {
+      return {
+        word: cw.word,
+        category: cw.category,
+        similarity: pairs.find((p) => p.i === inputIdx && p.j === j)!.sim,
+        inputWord: inputWords[inputIdx],
+      };
+    }
+    return {
+      word: cw.word,
+      category: cw.category,
+      similarity: 0,
+      inputWord: "",
+    };
+  });
+
+  const unusedInputWords = inputWords.filter((_, i) => !usedInput.has(i));
+
+  return { details, unusedInputWords };
 }
 
 export function calculateNameScore(
@@ -100,76 +140,64 @@ export function calculateNameScore(
   const nameWords = toWords(correctName);
   const lastWords = toWords(correctLastName);
 
-  const details: WordDetail[] = [];
-  let score = 0;
-
-  // --- First name (first word of name) ---
+  const correctWords: CorrectWord[] = [];
   if (nameWords.length > 0) {
-    const w = nameWords[0];
-    const { similarity, inputWord } = bestMatch(w, inputWords);
-    score += WEIGHTS.firstName * similarity;
-    details.push({ word: w, category: "firstName", similarity, inputWord });
+    correctWords.push({ word: nameWords[0], category: "firstName" });
   }
-
-  // --- Middle name(s) (remaining words of name) ---
-  if (nameWords.length > 1) {
-    const middle = nameWords.slice(1);
-    let totalSim = 0;
-    for (const w of middle) {
-      const { similarity, inputWord } = bestMatch(w, inputWords);
-      totalSim += similarity;
-      details.push({
-        word: w,
-        category: "middleName",
-        similarity,
-        inputWord,
-      });
-    }
-    const ratio = middle.length > 0 ? totalSim / middle.length : 0;
-    score += WEIGHTS.middleName * ratio;
+  for (let k = 1; k < nameWords.length; k++) {
+    correctWords.push({ word: nameWords[k], category: "middleName" });
   }
-
-  // --- First last name (first word of lastName) ---
   if (lastWords.length > 0) {
-    const w = lastWords[0];
-    const { similarity, inputWord } = bestMatch(w, inputWords);
-    score += WEIGHTS.firstLastName * similarity;
-    details.push({ word: w, category: "firstLastName", similarity, inputWord });
+    correctWords.push({ word: lastWords[0], category: "firstLastName" });
+  }
+  for (let k = 1; k < lastWords.length; k++) {
+    correctWords.push({ word: lastWords[k], category: "secondLastName" });
   }
 
-  // --- Second last name(s) (remaining words of lastName) ---
-  if (lastWords.length > 1) {
-    const second = lastWords.slice(1);
-    let totalSim = 0;
-    for (const w of second) {
-      const { similarity, inputWord } = bestMatch(w, inputWords);
-      totalSim += similarity;
-      details.push({
-        word: w,
-        category: "secondLastName",
-        similarity,
-        inputWord,
-      });
-    }
-    const ratio = second.length > 0 ? totalSim / second.length : 0;
-    score += WEIGHTS.secondLastName * ratio;
+  const { details, unusedInputWords } = globalBestMatch(inputWords, correctWords);
+
+  let score = 0;
+  let totalWeight = 0;
+  const grouped: Partial<Record<WordCategory, WordDetail[]>> = {};
+  for (const d of details) {
+    if (!grouped[d.category]) grouped[d.category] = [];
+    grouped[d.category]!.push(d);
   }
 
-  score = Math.min(score, 1);
+  for (const cat of [
+    "firstName",
+    "middleName",
+    "firstLastName",
+    "secondLastName",
+  ] as WordCategory[]) {
+    const words = grouped[cat];
+    if (!words || words.length === 0) continue;
+    const totalSim = words.reduce((sum, w) => sum + w.similarity, 0);
+    const ratio = totalSim / words.length;
+    score += WEIGHTS[cat] * ratio;
+    totalWeight += WEIGHTS[cat];
+  }
+
+  if (totalWeight > 0) {
+    score /= totalWeight;
+  }
+
+  score = Math.min(Math.max(score, 0), 1);
 
   return {
     score,
     quality: scoreToQuality(score),
     details,
+    unusedInputWords,
   };
 }
 
 export function scoreToQuality(score: number): number {
-  if (score >= 0.95) return 5;
-  if (score >= 0.8) return 4;
-  if (score >= 0.6) return 3;
-  if (score >= 0.4) return 2;
-  if (score >= 0.2) return 1;
+  if (score >= 0.90) return 5;
+  if (score >= 0.70) return 4;
+  if (score >= 0.45) return 3;
+  if (score >= 0.25) return 2;
+  if (score >= 0.10) return 1;
   return 0;
 }
 
