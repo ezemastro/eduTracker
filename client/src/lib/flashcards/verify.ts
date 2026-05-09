@@ -20,6 +20,7 @@ interface TypeVerifyResult {
   correctName: string;
   correctLastName: string;
   details: WordDetail[];
+  unusedInputWords: string[];
 }
 
 interface ReverseVerifyResult {
@@ -62,6 +63,7 @@ export const verifyFlashcard = async ({
         correctName: student.name,
         correctLastName: student.lastName,
         details: scoreResult.details,
+        unusedInputWords: scoreResult.unusedInputWords,
       },
     };
   }
