@@ -7,40 +7,40 @@ interface Props {
 const { studentId, image } = Astro.props;
 ---
 
-<div class="card shadow bg-base-100 w-full max-w-md">
+<div class="card bg-base-100 shadow w-full max-w-md">
   <figure class="relative">
-    <img src={image} class="w-full skeleton aspect-video object-cover" />
+    <img src={image} class="w-full skeleton aspect-video object-cover rounded-t-xl" />
   </figure>
 
   <div class="card-body gap-4">
-    <div class="form-control gap-2">
-      <label class="label-text font-medium text-center">
-        ¿Quién es este alumno?
-      </label>
-      <input
-        type="text"
-        id="type-input"
-        class="input input-bordered w-full text-lg text-center"
-        placeholder="Escribí el nombre completo..."
-        autocomplete="off"
-      />
+    <div class="form-control items-center flex flex-col gap-3">
+      <h2 class="card-title text-center">¿Quién es este alumno?</h2>
+
+      <div class="relative w-full">
+        <input
+          type="text"
+          id="type-input"
+          class="input input-bordered w-full text-lg text-center transition-colors"
+          placeholder="Escribí el nombre completo..."
+          autocomplete="off"
+        />
+        <div
+          id="diff-display"
+          class="hidden w-full text-lg text-center bg-base-200 border border-base-300 rounded-lg px-4 py-3 leading-normal min-h-14 wrap-break-words"
+        >
+        </div>
+      </div>
+
       <button id="verify-btn" class="btn btn-primary w-full">Verificar</button>
     </div>
 
     <div id="feedback" class="hidden flex-col gap-3">
-      <div id="breakdown" class="flex flex-col gap-1.5 text-sm"></div>
-
       <div class="flex flex-col gap-1">
-        <div class="flex justify-between text-xs font-medium">
+        <div class="flex justify-between text-xs font-medium opacity-80">
           <span>Puntuación</span>
           <span id="score-text">0%</span>
         </div>
-        <progress
-          id="score-bar"
-          class="progress progress-primary w-full"
-          value="0"
-          max="100"
-        ></progress>
+        <progress id="score-bar" class="progress w-full" value="0" max="100"></progress>
       </div>
     </div>
   </div>
@@ -48,41 +48,77 @@ const { studentId, image } = Astro.props;
 
 <script define:vars={{ studentId }}>
   const input = document.getElementById("type-input");
+  const diffDisplay = document.getElementById("diff-display");
   const verifyBtn = document.getElementById("verify-btn");
   const feedback = document.getElementById("feedback");
-  const breakdown = document.getElementById("breakdown");
   const scoreText = document.getElementById("score-text");
   const scoreBar = document.getElementById("score-bar");
 
   let answered = false;
 
-  const categoryLabel = (cat) => {
-    switch (cat) {
-      case "firstName":
-        return "Primer nombre";
-      case "middleName":
-        return "Segundo nombre";
-      case "firstLastName":
-        return "Primer apellido";
-      case "secondLastName":
-        return "Segundo apellido";
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function norm(str) {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function commonPrefixLen(a, b) {
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    return i;
+  }
+
+  function commonSuffixLen(a, b) {
+    let i = 0;
+    while (i < a.length && i < b.length && a[a.length - 1 - i] === b[b.length - 1 - i]) i++;
+    return i;
+  }
+
+  function renderWordDiff(inputWord, correctWord, similarity, unassignedWords) {
+    if (similarity >= 0.98) {
+      return `<span class="text-success font-bold">${escapeHtml(correctWord)}</span>`;
     }
-    return cat;
-  };
+    const ni = norm(inputWord || "");
+    const nc = norm(correctWord);
+    if (ni.length === 0) {
+      return `<span class="text-base-content/30">${escapeHtml(correctWord)}</span>`;
+    }
 
-  const similarityColor = (sim) => {
-    if (sim >= 0.9) return "text-success";
-    if (sim >= 0.6) return "text-warning";
-    if (sim > 0) return "text-orange-400";
-    return "text-error";
-  };
+    const pre = commonPrefixLen(ni, nc);
+    let suf = commonSuffixLen(ni, nc);
 
-  const similarityIcon = (sim) => {
-    if (sim >= 0.9) return '<span class="text-success font-bold">✓</span>';
-    if (sim >= 0.6) return '<span class="text-warning font-bold">~</span>';
-    if (sim > 0) return '<span class="text-orange-400 font-bold">∼</span>';
-    return '<span class="text-error font-bold">✗</span>';
-  };
+    if (pre + suf > ni.length) suf = ni.length - pre;
+    if (pre + suf > nc.length) suf = nc.length - pre;
+
+    const inp = inputWord || "";
+    const inputMid = ni.substring(pre, ni.length - suf);
+    const correctMid = correctWord.substring(pre, correctWord.length - suf);
+
+    // Si el texto del medio del input coincide exactamente con alguna palabra correcta sin asignar,
+    // no lo marcamos como error aquí (aparecerá gris en su lugar correspondiente)
+    const midIsUnassigned = unassignedWords.some(
+      (w) => norm(w) === inputMid
+    );
+
+    let html = "";
+    if (pre > 0) {
+      html += `<span class="text-success font-bold">${escapeHtml(correctWord.substring(0, pre))}</span>`;
+    }
+    if (inputMid.length > 0 && !midIsUnassigned) {
+      html += `<span class="text-error line-through decoration-error">${escapeHtml(inp.substring(pre, inp.length - suf))}</span>`;
+    }
+    if (correctMid.length > 0) {
+      html += `<span class="text-base-content/30">${escapeHtml(correctMid)}</span>`;
+    }
+    if (suf > 0) {
+      html += `<span class="text-success font-bold">${escapeHtml(correctWord.substring(correctWord.length - suf))}</span>`;
+    }
+    return html;
+  }
 
   const submit = async () => {
     if (answered) return;
@@ -105,73 +141,52 @@ const { studentId, image } = Astro.props;
     });
 
     const data = await res.json();
-    const { score, details } = data;
+    const { score, details, unusedInputWords } = data;
 
-    // Color input based on overall score
-    if (score >= 0.95) {
+    if (score >= 0.90) {
       input.classList.add("bg-success/20", "border-success");
-    } else if (score >= 0.5) {
+    } else if (score >= 0.45) {
       input.classList.add("bg-warning/20", "border-warning");
     } else {
       input.classList.add("bg-error/20", "border-error");
     }
 
-    // Build breakdown HTML
-    breakdown.innerHTML = "";
     const grouped = {};
     for (const d of details) {
       if (!grouped[d.category]) grouped[d.category] = [];
       grouped[d.category].push(d);
     }
 
-    for (const cat of [
-      "firstName",
-      "middleName",
-      "firstLastName",
-      "secondLastName",
-    ]) {
+    // Palabras correctas que NO tienen input asignado
+    const unassignedWords = details
+      .filter((d) => !d.inputWord)
+      .map((d) => d.word);
+
+    const diffParts = [];
+    for (const cat of ["firstName", "middleName", "firstLastName", "secondLastName"]) {
       const words = grouped[cat];
       if (!words || words.length === 0) continue;
-
-      const label = categoryLabel(cat);
-
-      const wordTexts = words.map((w) => {
-        const color = similarityColor(w.similarity);
-        if (w.similarity >= 0.95) {
-          return `<span class="${color} font-medium">${w.word}</span>`;
-        }
-        if (w.similarity > 0 && w.inputWord && w.inputWord !== w.word) {
-          return `<span class="${color} font-medium">${w.inputWord} <span class="opacity-60 text-xs">(~${w.word})</span></span>`;
-        }
-        if (w.similarity > 0 && w.inputWord) {
-          return `<span class="${color} font-medium">${w.inputWord}</span>`;
-        }
-        return `<span class="${color} font-medium">${w.word}</span>`;
-      });
-
-      const avgSim =
-        words.reduce((sum, w) => sum + w.similarity, 0) / words.length;
-      const icon = similarityIcon(avgSim);
-
-      const row = document.createElement("div");
-      row.className = "flex items-center gap-2 flex-wrap";
-      row.innerHTML = `${icon} <span class="opacity-70">${label}:</span> ${wordTexts.join(" ")}`;
-      breakdown.appendChild(row);
+      for (const w of words) {
+        diffParts.push(renderWordDiff(w.inputWord, w.word, w.similarity, unassignedWords));
+      }
     }
 
-    // Score bar
+    // Mostrar palabras del input que sobraron y no coinciden con ninguna correcta
+    for (const extra of unusedInputWords) {
+      diffParts.push(`<span class="text-error line-through decoration-error">${escapeHtml(extra)}</span>`);
+    }
+
+    input.classList.add("hidden");
+    diffDisplay.classList.remove("hidden");
+    diffDisplay.innerHTML = diffParts.join(" ");
+
     const pct = Math.round(score * 100);
     scoreText.textContent = pct + "%";
     scoreBar.value = pct;
-    scoreBar.classList.remove(
-      "progress-primary",
-      "progress-success",
-      "progress-warning",
-      "progress-error",
-    );
-    if (pct >= 80) {
+    scoreBar.classList.remove("progress-primary", "progress-success", "progress-warning", "progress-error");
+    if (pct >= 70) {
       scoreBar.classList.add("progress-success");
-    } else if (pct >= 50) {
+    } else if (pct >= 45) {
       scoreBar.classList.add("progress-warning");
     } else {
       scoreBar.classList.add("progress-error");
