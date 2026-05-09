@@ -38,6 +38,7 @@ export const POST: APIRoute = async ({ request }) => {
       correctName,
       correctLastName,
       details,
+      unusedInputWords,
     } = result.result;
 
     if (tracking) {
@@ -51,6 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
         correctName,
         correctLastName,
         details,
+        unusedInputWords,
         waitingForFeedback: false,
       }),
       { status: 200 },
